@@ -1,5 +1,6 @@
 package com.example.termproject
 
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -15,10 +16,13 @@ class MainNoteViewActivity : AppCompatActivity() {
     private val mainList = mutableListOf<JsonData>()
     private val extendedList = mutableMapOf<Int, MutableList<JsonData>>()
     private var updateJob: Job? = null
-
+    private var currentPosition: Int = 0
+    private lateinit var adapter: NotePagerAdapter
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_note_view)
+
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         val noteListUriString = intent.getStringExtra("noteListUri")
         noteListUriString?.let {
@@ -27,39 +31,48 @@ class MainNoteViewActivity : AppCompatActivity() {
             processNoteList()
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
-            val adapter = NotePagerAdapter(this, mainList, viewPager)
+            adapter = NotePagerAdapter(this, mainList, viewPager)
             viewPager.adapter = adapter
 
             viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
                 override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {}
 
                 override fun onPageSelected(position: Int) {
-                    startUpdateJob(position, adapter)
+                    currentPosition = position
                 }
 
                 override fun onPageScrollStateChanged(state: Int) {}
             })
 
             // Start coroutine for the initial page
-            startUpdateJob(0, adapter)
+            startUpdateJob()
         }
     }
 
-    private fun startUpdateJob(position: Int, adapter: NotePagerAdapter) {
+    private fun startUpdateJob() {
         updateJob?.cancel()
         updateJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 delay(200)
-                val noteDrawView = adapter.getDrawViewAt(position)
+                Log.d("startUpdateJob()", "currentPosition : ${currentPosition}")
+                val noteDrawView = adapter.getDrawViewAt(currentPosition)
                 noteDrawView?.let {
                     val bitmap = it.getBitmap()
                     val noteBase64 = Util.encodeBase64(bitmap)
-                    Log.d("startUpdateJob", "doing! $position")
-                    noteList[position].noteBase64 = noteBase64
+                    noteList[currentPosition].noteBase64 = noteBase64
                 }
             }
-            Log.d("startUpdateJob", "isActive is not active $position")
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startUpdateJob()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        updateJob?.cancel()
     }
 
     private fun loadNoteListFromFile(uri: Uri) {
