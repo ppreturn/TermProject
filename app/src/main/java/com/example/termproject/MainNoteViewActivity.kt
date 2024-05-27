@@ -7,28 +7,58 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.viewpager.widget.ViewPager
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.*
 import java.io.InputStreamReader
 
 class MainNoteViewActivity : AppCompatActivity() {
     private lateinit var noteList: MutableList<JsonData>
     private val mainList = mutableListOf<JsonData>()
     private val extendedList = mutableMapOf<Int, MutableList<JsonData>>()
+    private var updateJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_note_view)
 
         val noteListUriString = intent.getStringExtra("noteListUri")
-        Log.d("on noteViewActivity", noteListUriString.toString())
         noteListUriString?.let {
             val noteListUri = Uri.parse(it)
-            Log.d("MainNoteViewActivity", "Received URI: $noteListUri")
             loadNoteListFromFile(noteListUri)
             processNoteList()
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
-            val adapter = NotePagerAdapter(this, mainList)
+            val adapter = NotePagerAdapter(this, mainList, viewPager)
             viewPager.adapter = adapter
+
+            viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
+                override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {}
+
+                override fun onPageSelected(position: Int) {
+                    startUpdateJob(position, adapter)
+                }
+
+                override fun onPageScrollStateChanged(state: Int) {}
+            })
+
+            // Start coroutine for the initial page
+            startUpdateJob(0, adapter)
+        }
+    }
+
+    private fun startUpdateJob(position: Int, adapter: NotePagerAdapter) {
+        updateJob?.cancel()
+        updateJob = CoroutineScope(Dispatchers.Default).launch {
+            while (isActive) {
+                delay(200)
+                val noteDrawView = adapter.getDrawViewAt(position)
+                noteDrawView?.let {
+                    val bitmap = it.getBitmap()
+                    val noteBase64 = Util.encodeBase64(bitmap)
+                    Log.d("startUpdateJob", "doing! $position")
+                    noteList[position].noteBase64 = noteBase64
+                }
+            }
+            Log.d("startUpdateJob", "isActive is not active $position")
         }
     }
 
@@ -84,5 +114,25 @@ class MainNoteViewActivity : AppCompatActivity() {
                 extendedList[i] = tmpMutableList
             }
         }
+    }
+
+    private fun saveToJson() {
+        var modifiedNoteList = mutableListOf<JsonData>()
+
+        mainList.forEachIndexed { i, element ->
+            element.keyIndex = -1
+            element.tag = 0
+            modifiedNoteList.add(element)
+        }
+        extendedList.forEach { (key, List) ->
+            modifiedNoteList[List[0].keyIndex].keyIndex = modifiedNoteList.size
+            List.forEachIndexed { i, element ->
+                element.prevIndex = if(i != 0) modifiedNoteList.size - 1 else -1
+                element.nextIndex = if(i != List.size - 1) modifiedNoteList.size + 1 else -1
+                element.tag = 1
+                modifiedNoteList.add(element)
+            }
+        }
+
     }
 }

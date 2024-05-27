@@ -27,7 +27,7 @@ import java.io.InputStreamReader
 
 data class JsonData(
     val backgroundBase64: String,
-    val noteBase64: String,
+    var noteBase64: String,
     var nextIndex: Int,
     var prevIndex: Int,
     var keyIndex: Int,

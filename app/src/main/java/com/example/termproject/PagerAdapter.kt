@@ -7,9 +7,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.viewpager.widget.PagerAdapter
+import androidx.viewpager.widget.ViewPager
 
-class NotePagerAdapter(private val context: Context, private val noteList: List<JsonData>) : PagerAdapter() {
-    private val savedBitmaps = mutableMapOf<Int, Bitmap>()
+class NotePagerAdapter(private val context: Context, private val noteList: List<JsonData>, private val viewPager: ViewPager) : PagerAdapter() {
+    private val savedBitmaps = mutableMapOf<Int, Bitmap?>()
 
     override fun getCount(): Int = noteList.size
 
@@ -34,6 +35,9 @@ class NotePagerAdapter(private val context: Context, private val noteList: List<
             noteDrawView.setBitmap(it)
         }
 
+        // Tag the view with its position
+        view.tag = position
+
         container.addView(view)
         return view
     }
@@ -43,5 +47,9 @@ class NotePagerAdapter(private val context: Context, private val noteList: List<
         val noteDrawView = view.findViewById<DrawView>(R.id.noteDrawView)
         savedBitmaps[position] = noteDrawView.getBitmap()
         container.removeView(view)
+    }
+
+    fun getDrawViewAt(position: Int): DrawView? {
+        return viewPager.findViewWithTag<View>(position)?.findViewById(R.id.noteDrawView)
     }
 }
