@@ -1,5 +1,6 @@
 package com.example.termproject
 
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
@@ -55,6 +56,12 @@ class MainNoteViewActivity : AppCompatActivity() {
             startUpdateJob()
         }
 
+        // Extend 버튼 클릭 리스너 설정
+        findViewById<Button>(R.id.extendButton).setOnClickListener {
+            val intent = Intent(this, ExtendNoteViewActivity::class.java)
+            startActivity(intent)
+        }
+
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             noteListUri?.let { uri ->
                 saveToJson(uri)
@@ -74,8 +81,6 @@ class MainNoteViewActivity : AppCompatActivity() {
                     val bitmap = it.getBitmap()
                     val noteBase64 = Util.encodeBase64(bitmap)
                     noteList[currentPosition].noteBase64 = noteBase64
-                    //Log.d("startUpdateJob()", "is different? ${prvNoteBase64 != noteBase64}")
-                    Log.d("startUpdateJob()", "actual value : ${noteBase64.substring(60, 120)}")
                     prvNoteBase64 = noteBase64
                 }
             }
@@ -90,6 +95,13 @@ class MainNoteViewActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         updateJob?.cancel()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        noteListUri?.let {
+            saveToJson(it)
+        }
     }
 
     private fun loadNoteListFromFile(uri: Uri) {
@@ -163,7 +175,6 @@ class MainNoteViewActivity : AppCompatActivity() {
                 modifiedNoteList.add(element)
             }
         }
-        Log.d("saveToJson()", "modifiedNoteList : ${modifiedNoteList[0].noteBase64.substring(60, 120)}")
         val json = gson.toJson(modifiedNoteList).replace("\n", "")
         contentResolver.openOutputStream(uri)?.use { outputStream ->
             OutputStreamWriter(outputStream).use { writer ->
