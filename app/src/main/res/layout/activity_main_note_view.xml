@@ -9,18 +9,68 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/dummyButton"
+        app:layout_constraintBottom_toTopOf="@id/extendButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/dummyButton"
+        android:id="@+id/extendButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Dummy Button"
-        app:layout_constraintTop_toBottomOf="@id/viewPager"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:text="Extend"
 
+        app:layout_constraintHorizontal_chainStyle="packed"
+
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/viewPager"
+
+        app:layout_constraintLeft_toRightOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/drawButton"
+        />
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/drawButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Draw"
+
+        app:layout_constraintHorizontal_chainStyle="packed"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/viewPager"
+
+        app:layout_constraintLeft_toRightOf="@id/extendButton"
+        app:layout_constraintRight_toLeftOf="@id/eraseButton"
+        />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/eraseButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Erase"
+
+        app:layout_constraintHorizontal_chainStyle="packed"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/viewPager"
+
+        app:layout_constraintLeft_toRightOf="@id/drawButton"
+        app:layout_constraintRight_toLeftOf="@id/saveButton"
+        />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/saveButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save"
+
+        app:layout_constraintHorizontal_chainStyle="packed"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/viewPager"
+        app:layout_constraintEnd_toEndOf="parent"
+
+        app:layout_constraintLeft_toRightOf="@id/drawButton"
+        app:layout_constraintRight_toLeftOf="parent"
+        />
 </androidx.constraintlayout.widget.ConstraintLayout>

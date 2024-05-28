@@ -2,6 +2,8 @@ package com.example.termproject
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -31,8 +33,13 @@ class NotePagerAdapter(private val context: Context, private val noteList: List<
         noteDrawView.setImageView(backgroundImageView)
 
         // Restore the bitmap if it was saved before
-        savedBitmaps[position]?.let {
-            noteDrawView.setBitmap(it)
+        if(savedBitmaps[position] == null) {
+            val initNoteBitmap = Util.decodeBase64(noteData.noteBase64)
+            val convertedNoteBitmap = initNoteBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            Log.d("NotePagerAdapter", "initNoteBitmap: $convertedNoteBitmap")
+            noteDrawView.setBitmap(convertedNoteBitmap)
+        } else {
+            savedBitmaps[position]?.let { noteDrawView.setBitmap(it) }
         }
 
         // Tag the view with its position

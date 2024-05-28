@@ -11,10 +11,4 @@
         android:layout_height="wrap_content"
         android:text="Open File" />
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/saveButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Save" />
-
 </LinearLayout>

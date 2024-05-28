@@ -46,16 +46,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val openFileButton: Button = findViewById(R.id.openFileButton)
-        val saveButton: Button = findViewById(R.id.saveButton)
 
         openFileButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "*/*"
             startActivityForResult(intent, OPEN_FILE_REQUEST_CODE)
-        }
-
-        saveButton.setOnClickListener {
-            saveNoteListToFile()
         }
     }
 
@@ -113,8 +108,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handlePdfFile(uri: Uri) {
-        if(File(cacheDir, getFileNameFromUri(this, openedUri!!).toString() + ".json").exists()) {
-            handleJsonFile(File(cacheDir, getFileNameFromUri(this, openedUri!!).toString() + ".json").toUri())
+        if(File(getExternalFilesDir(null), getFileNameFromUri(this, openedUri!!).toString() + ".json").exists()) {
+            handleJsonFile(File(getExternalFilesDir(null)
+                , getFileNameFromUri(this, openedUri!!).toString() + ".json").toUri())
             return
         }
         contentResolver.openFileDescriptor(uri, "r")?.use { parcelFileDescriptor ->
@@ -162,8 +158,8 @@ class MainActivity : AppCompatActivity() {
     private fun saveNoteListToFile() {
         // 파일 이름 및 경로 설정
         val fileName = getFileNameFromUri(this, openedUri!!).toString() + ".json"
-        val file = File(cacheDir, fileName)
-        val json = gson.toJson(noteList)
+        val file = File(getExternalFilesDir(null), fileName)
+        val json = gson.toJson(noteList).replace("\n", "")
 
         FileOutputStream(file).use {
             it.write(json.toByteArray())
@@ -180,7 +176,7 @@ class MainActivity : AppCompatActivity() {
     private fun openNoteViewActivity() {
         // 파일 이름 및 경로 설정
         val fileName = getFileNameFromUri(this, openedUri!!).toString() + ".json"
-        val file = File(cacheDir, fileName)
+        val file = File(getExternalFilesDir(null), fileName)
         Log.d("넘겨 주는 파일 경로", file.absolutePath)
         if (!file.exists()) {
             Log.e("MainActivity", "File not found: ${file.absolutePath}")
