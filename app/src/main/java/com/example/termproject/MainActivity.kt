@@ -20,23 +20,29 @@ import androidx.core.net.toUri
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.security.MessageDigest
 
-data class JsonData(
-    val backgroundBase64: String,
-    var noteBase64: String,
+data class ListInfo(
+    val unique: Int,
     var nextIndex: Int,
     var prevIndex: Int,
     var keyIndex: Int,
     var tag: Int
 )
 
+data class Notes(
+    var nextPage: Int,
+    val noteList: ArrayList<ListInfo>
+)
+
 class MainActivity : AppCompatActivity() {
     private val OPEN_FILE_REQUEST_CODE = 1
-    private val noteList = mutableListOf<JsonData>()
+    private var notes: Notes? = null
     private var openedUri : Uri? = null
 
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
@@ -47,119 +53,94 @@ class MainActivity : AppCompatActivity() {
 
         val openFileButton: Button = findViewById(R.id.openFileButton)
 
+        notes = Notes(0, arrayListOf())
+
         openFileButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
-            intent.type = "*/*"
+            intent.type = "application/pdf"
             startActivityForResult(intent, OPEN_FILE_REQUEST_CODE)
         }
     }
+
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             openedUri = data?.data
             openedUri?.let {
-                val fileType = contentResolver.getType(it)
-                if (fileType == "application/pdf") {
-                    handlePdfFile(it)
-                    saveNoteListToFile()
-                    openNoteViewActivity()
-                    noteList.clear()
-                } else {
-                    Toast.makeText(this, "지원하지 않는 파일 형식입니다.", Toast.LENGTH_SHORT).show()
-                }
+                handlePdfFile(it)
+                Log.d("onActivityResult", "Log")
+                saveJson()
+                openNoteViewActivity()
+                notes = null
             }
         }
     }
 
-    fun getFileNameFromUri(context: Context, uri: Uri): String? {
-        var fileName: String? = null
+    private fun calculateFileHash(uri: Uri): String {
+        val inputStream = contentResolver.openInputStream(uri)
+        val buffer = inputStream?.readBytes()
+        inputStream?.close()
 
-        if (uri.scheme.equals("content")) {
-            val cursor: Cursor? = context.contentResolver.query(uri, null, null, null, null)
-            try {
-                if (cursor != null && cursor.moveToFirst()) {
-                    val columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (columnIndex != -1) {
-                        fileName = cursor.getString(columnIndex)
-                    }
-                }
-            } finally {
-                cursor?.close()
-            }
-        }
+        val md = MessageDigest.getInstance("MD5")
+        val hashBytes = md.digest(buffer)
 
-        if (fileName == null) {
-            fileName = uri.path
-            val cut = fileName?.lastIndexOf('/')
-            if (cut != null && cut != -1) {
-                fileName = fileName?.substring(cut + 1)
-            }
-        }
-
-        fileName?.let {
-            val dotIndex = it.lastIndexOf('.')
-            if (dotIndex > 0) {
-                fileName = it.substring(0, dotIndex)
-            }
-        }
-
-        return fileName
+        return hashBytes.joinToString("") { "%02x".format(it) }
     }
-
     private fun handlePdfFile(uri: Uri) {
-        if(File(getExternalFilesDir(null), getFileNameFromUri(this, openedUri!!).toString() + ".json").exists()) {
+        val fileHash = calculateFileHash(uri)
+        Log.d("handlePdfFile() fileHash", fileHash)
+        if(File(getExternalFilesDir(null), "$fileHash.json").exists()) {
             handleJsonFile(File(getExternalFilesDir(null)
-                , getFileNameFromUri(this, openedUri!!).toString() + ".json").toUri())
+                , "$fileHash.json"
+            ).toUri())
             return
         }
         contentResolver.openFileDescriptor(uri, "r")?.use { parcelFileDescriptor ->
             val pdfRenderer = PdfRenderer(parcelFileDescriptor)
             val pageCount = pdfRenderer.pageCount
-
             for (i in 0 until pageCount) {
-                val page = pdfRenderer.openPage(i)
-                val width = page.width
-                val height = page.height
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                page.close()
-
-                val backgroundBase64 = Util.encodeBase64(bitmap)
-                val noteBase64 = Util.encodeBase64(Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888))
-
-                val jsonData = JsonData(
-                    backgroundBase64 = backgroundBase64,
-                    noteBase64 = noteBase64,
+                Log.d("handlePdfFile", "${notes == null}")
+                val jsonData = ListInfo(
+                    unique = i,
                     nextIndex = -1,
-                    prevIndex = if (noteList.isNotEmpty()) noteList.size - 1 else -1,
+                    prevIndex = if (notes?.noteList!!.isNotEmpty()) notes?.noteList!!.size - 1 else -1,
                     keyIndex = -1,
                     tag = 0
                 )
-
-                if (noteList.isNotEmpty()) {
-                    noteList.last().nextIndex = noteList.size
+                Log.d("handlePdfFile", "Log2")
+                if (notes?.noteList!!.isNotEmpty()) {
+                    notes?.noteList!!.last().nextIndex = notes?.noteList!!.size
                 }
 
-                noteList.add(jsonData)
+                notes?.noteList!!.add(jsonData)
             }
         }
     }
 
     private fun handleJsonFile(uri: Uri) {
         contentResolver.openInputStream(uri)?.use { inputStream ->
-            val reader = InputStreamReader(inputStream)
-            val type = object : TypeToken<List<JsonData>>() {}.type
-            val jsonDataList: List<JsonData> = gson.fromJson(reader, type)
-            noteList.addAll(jsonDataList)
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            val stringBuilder = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                stringBuilder.append(line)
+            }
+            reader.close()
+            inputStream.close()
+
+            val jsonString = stringBuilder.toString()
+            notes = gson.fromJson(jsonString, Notes::class.java)
         }
     }
 
-    private fun saveNoteListToFile() {
+    private fun saveJson() {
         // 파일 이름 및 경로 설정
-        val fileName = getFileNameFromUri(this, openedUri!!).toString() + ".json"
+        val fileHash = calculateFileHash(openedUri!!)
+        val fileName = "$fileHash.json"
         val file = File(getExternalFilesDir(null), fileName)
-        val json = gson.toJson(noteList).replace("\n", "")
+        val json = gson.toJson(notes).replace("\n", "")
 
         FileOutputStream(file).use {
             it.write(json.toByteArray())
@@ -167,7 +148,6 @@ class MainActivity : AppCompatActivity() {
         // 파일 저장 여부 확인
         if (file.exists()) {
             Log.d("MainActivity", "File saved successfully: ${file.absolutePath}")
-            Toast.makeText(this, "파일이 저장되었습니다: $fileName", Toast.LENGTH_SHORT).show()
         } else {
             Log.e("MainActivity", "File not saved")
         }
@@ -175,7 +155,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun openNoteViewActivity() {
         // 파일 이름 및 경로 설정
-        val fileName = getFileNameFromUri(this, openedUri!!).toString() + ".json"
+        val fileHash = calculateFileHash(openedUri!!)
+        val fileName = "$fileHash.json"
         val file = File(getExternalFilesDir(null), fileName)
         Log.d("넘겨 주는 파일 경로", file.absolutePath)
         if (!file.exists()) {
@@ -183,9 +164,11 @@ class MainActivity : AppCompatActivity() {
             return
         }
         // 파일 URI 가져오기
-        val uri = FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
+        val jsonUri = FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
         val intent = Intent(this, MainNoteViewActivity::class.java).apply {
-            putExtra("noteListUri", uri.toString())
+            putExtra("jsonUri", jsonUri.toString())
+            putExtra("pdfUri", openedUri.toString())
+            putExtra("fileHash", fileHash)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(intent)

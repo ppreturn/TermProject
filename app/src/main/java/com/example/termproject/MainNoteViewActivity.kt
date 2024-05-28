@@ -3,8 +3,10 @@ package com.example.termproject
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -13,18 +15,30 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.*
+import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 
+import com.example.termproject.Util
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+
 class MainNoteViewActivity : AppCompatActivity() {
-    private lateinit var noteList: MutableList<JsonData>
-    private val mainList = mutableListOf<JsonData>()
-    private val extendedList = mutableMapOf<Int, MutableList<JsonData>>()
+    private lateinit var fileDescriptor: ParcelFileDescriptor
+
+    private lateinit var notes : Notes
+    private val mainList = mutableListOf<ListInfo>()
+    private val extendedList = mutableMapOf<Int, MutableList<ListInfo>>()
     private var updateJob: Job? = null
     private var currentPosition: Int = 0
     private lateinit var adapter: NotePagerAdapter
 
-    private var noteListUri: Uri? = null
+    private var jsonUri: Uri? = null
+    private var pdfUri: Uri? = null
+    private var fileHash: String? = null
+
+
     private var isEraseMode = false
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
 
@@ -32,16 +46,23 @@ class MainNoteViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_note_view)
 
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        // requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
-        val noteListUriString = intent.getStringExtra("noteListUri")
-        noteListUriString?.let {
-            noteListUri = Uri.parse(it)
-            loadNoteListFromFile(noteListUri!!)
+        val jsonUriString = intent.getStringExtra("jsonUri")
+        val pdfUriString = intent.getStringExtra("pdfUri")
+        fileHash = intent.getStringExtra("fileHash")
+
+        pdfUriString?.let {
+            pdfUri = Uri.parse(it)
+        }
+
+        jsonUriString?.let {
+            jsonUri = Uri.parse(it)
+            loadNoteListFromFile(jsonUri!!)
             processNoteList()
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
-            adapter = NotePagerAdapter(this, mainList, viewPager)
+            adapter = NotePagerAdapter(this, openPdfRenderer(pdfUri!!), fileHash!!, mainList, viewPager)
             viewPager.adapter = adapter
 
             viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
@@ -71,7 +92,7 @@ class MainNoteViewActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.saveButton).setOnClickListener {
-            noteListUri?.let { uri ->
+            jsonUri?.let { uri ->
                 saveToJson(uri)
             }
         }
@@ -89,19 +110,17 @@ class MainNoteViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun startUpdateJob() {
+    private fun startUpdateJob() { // 폴더에 비트맵 저장 (Ext/HashFolder/0.png, 1.png, ...)
         updateJob?.cancel()
         updateJob = CoroutineScope(Dispatchers.Default).launch {
-            var prvNoteBase64 = ""
             while (isActive) {
                 delay(200)
-                //Log.d("startUpdateJob()", "currentPosition : ${currentPosition}")
                 val noteDrawView = adapter.getDrawViewAt(currentPosition)
                 noteDrawView?.let {
                     val bitmap = it.getBitmap()
-                    val noteBase64 = Util.encodeBase64(bitmap)
-                    noteList[currentPosition].noteBase64 = noteBase64
-                    prvNoteBase64 = noteBase64
+                    notes.noteList[currentPosition].unique // todo with unique number
+                    val saveDir = File(getExternalFilesDir(null), "$fileHash")
+                    Util.saveImage(bitmap, saveDir, "${notes.noteList[currentPosition].unique}.png")
                 }
             }
         }
@@ -119,44 +138,47 @@ class MainNoteViewActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        noteListUri?.let {
+        jsonUri?.let {
             saveToJson(it)
         }
     }
 
     private fun loadNoteListFromFile(uri: Uri) {
         contentResolver.openInputStream(uri)?.use { inputStream ->
-            val reader = InputStreamReader(inputStream)
-            val type = object : TypeToken<MutableList<JsonData>>() {}.type
-            noteList = Gson().fromJson(reader, type)
+            val reader = BufferedReader(InputStreamReader(inputStream))
+            val stringBuilder = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                stringBuilder.append(line)
+            }
+            reader.close()
+            inputStream.close()
+
+            val jsonString = stringBuilder.toString()
+            notes = gson.fromJson(jsonString, Notes::class.java)
         }
     }
 
     private fun processNoteList() {
         // Start element 찾기
-        var startElement = noteList.find { it.tag == 0 && it.prevIndex == -1 }
+        var startElement = notes.noteList.find { it.tag == 0 && it.prevIndex == -1 }
 
         // Start element가 없는 경우 A4용지 크기의 배경과 투명 노트를 생성
         if (startElement == null) {
-            val a4Width = 2480 // A4 용지 너비 (픽셀, 300dpi 기준)
-            val a4Height = 3508 // A4 용지 높이 (픽셀, 300dpi 기준)
-            val whiteBackground = Util.createBase64Image(a4Width, a4Height, android.graphics.Color.WHITE)
-            val transparentNote = Util.createBase64Image(a4Width, a4Height, android.graphics.Color.TRANSPARENT)
-
-            startElement = JsonData(
-                backgroundBase64 = whiteBackground,
-                noteBase64 = transparentNote,
+            startElement = ListInfo(
+                unique = 0,
                 nextIndex = -1,
                 prevIndex = -1,
                 keyIndex = -1,
                 tag = 0
             )
+            notes.nextPage = 1
         }
 
         // mainList 초기화 및 요소 추가
         mainList.add(startElement)
         while (mainList.last().nextIndex != -1) {
-            val nextElement = noteList[mainList.last().nextIndex]
+            val nextElement = notes.noteList[mainList.last().nextIndex]
             nextElement.prevIndex = mainList.size - 1
             mainList.last().nextIndex = mainList.size
             mainList.add(nextElement)
@@ -165,10 +187,10 @@ class MainNoteViewActivity : AppCompatActivity() {
         // extendedList 초기화 및 요소 추가
         mainList.forEachIndexed { i, element ->
             if (element.keyIndex != -1) {
-                var extendedStartElement = noteList[element.keyIndex]
-                val tmpMutableList = mutableListOf<JsonData>(extendedStartElement)
+                var extendedStartElement = notes.noteList[element.keyIndex]
+                val tmpMutableList = mutableListOf(extendedStartElement)
                 while (tmpMutableList.last().nextIndex != -1) {
-                    val et = noteList[tmpMutableList.last().nextIndex]
+                    val et = notes.noteList[tmpMutableList.last().nextIndex]
                     et.prevIndex = tmpMutableList.size - 1
                     tmpMutableList.last().nextIndex = tmpMutableList.size
                     tmpMutableList.add(et)
@@ -179,27 +201,44 @@ class MainNoteViewActivity : AppCompatActivity() {
     }
 
     private fun saveToJson(uri: Uri) {
-        var modifiedNoteList = mutableListOf<JsonData>()
+        val modifiedNoteList = ArrayList<ListInfo>()
 
         mainList.forEachIndexed { i, element ->
             element.keyIndex = -1
             element.tag = 0
             modifiedNoteList.add(element)
         }
-        extendedList.forEach { (key, List) ->
-            modifiedNoteList[List[0].keyIndex].keyIndex = modifiedNoteList.size
-            List.forEachIndexed { i, element ->
-                element.prevIndex = if(i != 0) modifiedNoteList.size - 1 else -1
-                element.nextIndex = if(i != List.size - 1) modifiedNoteList.size + 1 else -1
-                element.tag = 1
-                modifiedNoteList.add(element)
+        extendedList.forEach { (key, list) ->
+            if(list.size != 0) {
+                modifiedNoteList[list[0].keyIndex].keyIndex = modifiedNoteList.size
+                list.forEachIndexed { i, element ->
+                    element.prevIndex = if(i != 0) modifiedNoteList.size - 1 else -1
+                    element.nextIndex = if(i != list.size - 1) modifiedNoteList.size + 1 else -1
+                    element.tag = 1
+                    modifiedNoteList.add(element)
+                }
             }
         }
-        val json = gson.toJson(modifiedNoteList).replace("\n", "")
+        val modifiedNotes = Notes(notes.nextPage, modifiedNoteList)
+        val json = gson.toJson(modifiedNotes).replace("\n", "")
         contentResolver.openOutputStream(uri)?.use { outputStream ->
             OutputStreamWriter(outputStream).use { writer ->
                 writer.write(json)
             }
         }
+    }
+
+    @Throws(IOException::class)
+    private fun openPdfRenderer(uri: Uri) :PdfRenderer {
+        val inputStream = contentResolver.openInputStream(uri)
+        val file = File(cacheDir, fileHash)
+        val outputStream = FileOutputStream(file)
+        inputStream.use { input ->
+            outputStream.use { output ->
+                input?.copyTo(output)
+            }
+        }
+        fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        return PdfRenderer(fileDescriptor)
     }
 }
