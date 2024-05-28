@@ -16,6 +16,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var imageView: ImageView? = null
     private var contentRect: RectF = RectF()
 
+    private var erase: Boolean = false
     init {
         setupDrawing()
     }
@@ -93,10 +94,19 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     }
                     MotionEvent.ACTION_MOVE -> {
                         drawPath.lineTo(touchX - contentRect.left, touchY - contentRect.top)
+                        if(erase) {
+                            drawCanvas?.drawPath(drawPath, drawPaint)
+                            drawPath.reset()
+                            drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
+                        }
+                        invalidate() // 이걸 없애면 가끔씩 좋은일이 일어납니다.
                     }
                     MotionEvent.ACTION_UP -> {
-                        drawCanvas?.drawPath(drawPath, drawPaint)
-                        drawPath.reset()
+                        if(!erase) {
+                            drawCanvas?.drawPath(drawPath, drawPaint)
+                            drawPath.reset()
+                        }
+                        invalidate() // 이걸 없애면 가끔씩 좋은일이 일어납니다.
                     }
                     else -> return false
                 }
@@ -121,5 +131,19 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     fun clear() {
         canvasBitmap?.eraseColor(Color.TRANSPARENT)
         invalidate()
+    }
+
+    fun setPaintProperties(color: Int, strokeWidth: Float) {
+        drawPaint.color = color
+        drawPaint.strokeWidth = strokeWidth
+        drawPaint.xfermode = null
+        erase = false
+    }
+
+    fun setEraseMode() {
+        drawPaint.color = Color.TRANSPARENT
+        drawPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        drawPaint.strokeWidth = 50f
+        erase = true
     }
 }

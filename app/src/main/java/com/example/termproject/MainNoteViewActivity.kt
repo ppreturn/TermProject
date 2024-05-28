@@ -2,6 +2,7 @@ package com.example.termproject
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -24,6 +25,7 @@ class MainNoteViewActivity : AppCompatActivity() {
     private lateinit var adapter: NotePagerAdapter
 
     private var noteListUri: Uri? = null
+    private var isEraseMode = false
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +49,12 @@ class MainNoteViewActivity : AppCompatActivity() {
 
                 override fun onPageSelected(position: Int) {
                     currentPosition = position
+                    val drawView = adapter.getDrawViewAt(currentPosition)
+                    if (isEraseMode) {
+                        drawView?.setEraseMode()
+                    } else {
+                        drawView?.setPaintProperties(Color.BLACK, 5f)
+                    }
                 }
 
                 override fun onPageScrollStateChanged(state: Int) {}
@@ -66,6 +74,18 @@ class MainNoteViewActivity : AppCompatActivity() {
             noteListUri?.let { uri ->
                 saveToJson(uri)
             }
+        }
+
+        findViewById<Button>(R.id.drawButton).setOnClickListener {
+            isEraseMode = false
+            val drawView = adapter.getDrawViewAt(currentPosition)
+            drawView?.setPaintProperties(Color.BLACK, 5f)
+        }
+
+        findViewById<Button>(R.id.eraseButton).setOnClickListener {
+            isEraseMode = true
+            val drawView = adapter.getDrawViewAt(currentPosition)
+            drawView?.setEraseMode()
         }
     }
 
