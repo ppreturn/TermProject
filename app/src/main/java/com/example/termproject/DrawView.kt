@@ -60,8 +60,14 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
                 contentRect.set(dx, dy, dx + intrinsicWidth * scale, dy + intrinsicHeight * scale)
 
-                if (canvasBitmap == null || canvasBitmap!!.width != contentRect.width().toInt() || canvasBitmap!!.height != contentRect.height().toInt()) {
+                if (canvasBitmap == null) {
                     canvasBitmap = Bitmap.createBitmap(contentRect.width().toInt(), contentRect.height().toInt(), Bitmap.Config.ARGB_8888)
+                    drawCanvas = Canvas(canvasBitmap!!)
+                } else if(canvasBitmap!!.width != contentRect.width().toInt() || canvasBitmap!!.height != contentRect.height().toInt()) {
+                    val newWidth = contentRect.width().toInt()
+                    val newHeight = contentRect.height().toInt()
+
+                    canvasBitmap = Bitmap.createScaledBitmap(canvasBitmap!!, newWidth, newHeight, true)
                     drawCanvas = Canvas(canvasBitmap!!)
                 }
 
