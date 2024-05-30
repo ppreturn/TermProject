@@ -15,6 +15,9 @@ import android.widget.ImageView
 import androidx.viewpager.widget.PagerAdapter
 import androidx.viewpager.widget.ViewPager
 import android.graphics.pdf.PdfRenderer
+import android.os.Build
+import android.view.WindowInsets
+import android.view.WindowManager
 import java.io.File
 
 class NotePagerAdapter(private val context: Context,
@@ -22,8 +25,6 @@ class NotePagerAdapter(private val context: Context,
                        private val fileHash: String,
                        private val noteList: List<ListInfo>,
                        private val viewPager: ViewPager) : PagerAdapter() {
-    //private val savedBitmaps = mutableMapOf<Int, Bitmap?>()
-
     override fun getCount(): Int = noteList.size
 
     override fun isViewFromObject(view: View, obj: Any): Boolean = view == obj
@@ -37,7 +38,9 @@ class NotePagerAdapter(private val context: Context,
 
         val noteData = noteList[position]
         val pdfPage = pdfRenderer.openPage(position)
-        val backgroundBitmap = Bitmap.createBitmap(pdfPage.width, pdfPage.height, Bitmap.Config.ARGB_8888)
+
+        val backgroundBitmap = getScaledPdfBitmap(pdfPage, context)
+
         pdfPage.render(backgroundBitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
         backgroundImageView.setImageBitmap(backgroundBitmap)
@@ -45,8 +48,7 @@ class NotePagerAdapter(private val context: Context,
         // Set DrawView to match ImageView content size
         noteDrawView.setImageView(backgroundImageView)
         pdfPage.close()
-        // Restore the bitmap if it was saved before
-       // if(savedBitmaps[position] == null) {
+
         val fileDir = File(context.getExternalFilesDir(null), "${fileHash}")
         val pngFile = File(fileDir, "${noteData.unique}.png")
         Log.d("Absolute Path", "${pngFile.absolutePath}")
@@ -62,6 +64,31 @@ class NotePagerAdapter(private val context: Context,
         return view
     }
 
+    private fun getScaledPdfBitmap(pdfPage: PdfRenderer.Page, context: Context): Bitmap {
+        var scaleFactor : Float = 0f
+        var screenWidth : Int = 0
+        var screenHeight : Int = 0
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val windowMetrics = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).currentWindowMetrics
+            val insets = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.systemBars()
+            )
+            val bounds = windowMetrics.bounds
+            screenWidth = bounds.width() - insets.left - insets.right
+            screenHeight = bounds.height() - insets.top - insets.bottom
+        } else {
+            val displayMetrics = context.resources.displayMetrics
+            screenWidth = displayMetrics.widthPixels
+            screenHeight = displayMetrics.heightPixels
+        }
+        scaleFactor = 2*minOf(screenWidth/pdfPage.width.toFloat(), screenHeight/pdfPage.height.toFloat())
+        val backgroundWidth = (pdfPage.width * scaleFactor).toInt()
+        val backgroundHeight = (pdfPage.height * scaleFactor).toInt()
+        val scaledBitmap = Bitmap.createBitmap(backgroundWidth, backgroundHeight, Bitmap.Config.ARGB_8888)
+        return scaledBitmap
+    }
+
     private fun createDefaultBitmap(width: Int, height: Int): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -73,8 +100,6 @@ class NotePagerAdapter(private val context: Context,
 
     override fun destroyItem(container: ViewGroup, position: Int, obj: Any) {
         val view = obj as View
-        val noteDrawView = view.findViewById<DrawView>(R.id.noteDrawView)
-        // savedBitmaps[position] = noteDrawView.getBitmap()
         container.removeView(view)
     }
 
