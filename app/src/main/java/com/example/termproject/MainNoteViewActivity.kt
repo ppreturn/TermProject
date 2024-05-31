@@ -47,11 +47,11 @@ class MainNoteViewActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_note_view)
 
-        // requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-
         val jsonUriString = intent.getStringExtra("jsonUri")
         val pdfUriString = intent.getStringExtra("pdfUri")
         fileHash = intent.getStringExtra("fileHash")
+
+        isEraseMode = savedInstanceState?.getBoolean("isEraseMode") ?: false
 
         pdfUriString?.let {
             pdfUri = Uri.parse(it)
@@ -63,7 +63,7 @@ class MainNoteViewActivity : AppCompatActivity() {
             processNoteList()
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
-            adapter = MainNotePagerAdapter(this, openPdfRenderer(pdfUri!!), fileHash!!, mainList, viewPager)
+            adapter = MainNotePagerAdapter(this, isEraseMode, openPdfRenderer(pdfUri!!), fileHash!!, mainList, viewPager)
             viewPager.adapter = adapter
 
             viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
@@ -71,21 +71,38 @@ class MainNoteViewActivity : AppCompatActivity() {
 
                 override fun onPageSelected(position: Int) {
                     currentPosition = position
-                    val drawView = adapter.getDrawViewAt(currentPosition)
-                    if (isEraseMode) {
-                        drawView?.setEraseMode()
-                    } else {
-                        drawView?.setPaintProperties(Color.BLACK, 5f)
-                    }
+                    drawViewUpdate(position)
                 }
 
                 override fun onPageScrollStateChanged(state: Int) {}
-            })
 
-            // Start coroutine for the initial page
+
+            })
+            
             startUpdateJob()
         }
 
+        setupViewSettings()
+    }
+
+    private fun startUpdateJob() { // 폴더에 비트맵 저장 (Ext/HashFolder/0.png, 1.png, ...)
+        updateJob?.cancel()
+        updateJob = CoroutineScope(Dispatchers.Default).launch {
+            while (isActive) {
+                Log.d("**** >> startUpdateJob", "isEraseMode : $isEraseMode")
+                delay(200)
+                val noteDrawView = adapter.getDrawViewAt(currentPosition)
+                noteDrawView?.let {
+                    val bitmap = it.getBitmap()
+                    notes.noteList[currentPosition].unique // todo with unique number
+                    val saveDir = File(getExternalFilesDir(null), "$fileHash")
+                    Util.saveImage(bitmap, saveDir, "${notes.noteList[currentPosition].unique}.png")
+                }
+            }
+        }
+    }
+
+    private fun setupViewSettings() {
         // Extend 버튼 클릭 리스너 설정
         findViewById<Button>(R.id.extendButton).setOnClickListener {
             val file = File(cacheDir, "extendList.json")
@@ -93,7 +110,7 @@ class MainNoteViewActivity : AppCompatActivity() {
             saveToExtendJson(extendJsonUri)
             val intent = Intent(this, ExtendNoteViewActivity::class.java).apply {
                 putExtra("extendJsonUri", extendJsonUri.toString())
-                putExtra("pdfUri", pdfUriString)
+                putExtra("pdfUri", pdfUri.toString()) // TODO :: maybe cause error
                 putExtra("fileHash", fileHash)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -108,33 +125,29 @@ class MainNoteViewActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.drawButton).setOnClickListener {
             isEraseMode = false
+            adapter.isEraseMode = false
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setPaintProperties(Color.BLACK, 5f)
         }
 
         findViewById<Button>(R.id.eraseButton).setOnClickListener {
             isEraseMode = true
+            adapter.isEraseMode = true
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setEraseMode()
         }
     }
 
-    private fun startUpdateJob() { // 폴더에 비트맵 저장 (Ext/HashFolder/0.png, 1.png, ...)
-        updateJob?.cancel()
-        updateJob = CoroutineScope(Dispatchers.Default).launch {
-            while (isActive) {
-                delay(200)
-                val noteDrawView = adapter.getDrawViewAt(currentPosition)
-                noteDrawView?.let {
-                    val bitmap = it.getBitmap()
-                    notes.noteList[currentPosition].unique // todo with unique number
-                    val saveDir = File(getExternalFilesDir(null), "$fileHash")
-                    Util.saveImage(bitmap, saveDir, "${notes.noteList[currentPosition].unique}.png")
-                }
-            }
+    private fun drawViewUpdate(position: Int) {
+        Log.d("0000 >> drawViewUpdate", "isEraseMode : $isEraseMode")
+        val drawView = adapter.getDrawViewAt(position)
+        if (isEraseMode) {
+            Log.d("0000 >> drawViewUpdate", "${drawView == null}")
+            drawView?.setEraseMode()
+        } else {
+            drawView?.setPaintProperties(Color.BLACK, 5f)
         }
     }
-
     override fun onResume() {
         super.onResume()
         startUpdateJob()
@@ -267,5 +280,18 @@ class MainNoteViewActivity : AppCompatActivity() {
         }
         fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         return PdfRenderer(fileDescriptor)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        Log.d("&&&&onSaveInstanceState", "isEraseMode : $isEraseMode")
+        outState.putBoolean("isEraseMode", isEraseMode)
+    }
+
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        isEraseMode = savedInstanceState.getBoolean("isEraseMode")
+        Log.d("&&&&onRestoreInstanceState", "isEraseMode : $isEraseMode")
+        drawViewUpdate(currentPosition)
     }
 }

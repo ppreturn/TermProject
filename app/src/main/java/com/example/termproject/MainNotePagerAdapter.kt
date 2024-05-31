@@ -17,10 +17,11 @@ import android.graphics.pdf.PdfRenderer
 import java.io.File
 
 class MainNotePagerAdapter(private val context: Context,
-                       private val pdfRenderer: PdfRenderer,
-                       private val fileHash: String,
-                       private val noteList: List<ListInfo>,
-                       private val viewPager: ViewPager) : PagerAdapter() {
+                           public var isEraseMode: Boolean,
+                           private val pdfRenderer: PdfRenderer,
+                           private val fileHash: String,
+                           private val noteList: List<ListInfo>,
+                           private val viewPager: ViewPager) : PagerAdapter() {
     override fun getCount(): Int = noteList.size
 
     override fun isViewFromObject(view: View, obj: Any): Boolean = view == obj
@@ -54,6 +55,9 @@ class MainNotePagerAdapter(private val context: Context,
                             createDefaultBitmap(pdfPage, context)
         val convertedNoteBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         noteDrawView.setBitmap(convertedNoteBitmap)
+
+        if(isEraseMode) noteDrawView.setEraseMode()
+        else noteDrawView.setPaintProperties(Color.BLACK, 5f)
 
         // Tag the view with its position
         view.tag = position
