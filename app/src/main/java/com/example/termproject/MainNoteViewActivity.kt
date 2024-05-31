@@ -136,10 +136,8 @@ class MainNoteViewActivity : AppCompatActivity() {
     }
 
     private fun drawViewUpdate(position: Int) {
-        Log.d("0000 >> drawViewUpdate", "isEraseMode : $isEraseMode")
         val drawView = adapter.getDrawViewAt(position)
         if (isEraseMode) {
-            Log.d("0000 >> drawViewUpdate", "${drawView == null}")
             drawView?.setEraseMode()
         } else {
             drawView?.setPaintProperties(Color.BLACK, 5f)

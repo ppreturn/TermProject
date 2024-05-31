@@ -53,13 +53,6 @@ class MainNotePagerAdapter(private val context: Context,
                             createDefaultBitmap(pdfPage, context)
         val convertedNoteBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
         noteDrawView.setBitmap(convertedNoteBitmap)
-        Log.d("-----------------", "")
-        Log.d("Absolute Path", "${pngFile.absolutePath}")
-        Log.d("pdf size : ", "width : ${pdfPage.width}, height : ${pdfPage.height}")
-        Log.d("scaleFactor : ", "${getScaleFactor(pdfPage, context)}")
-        Log.d("backgroundViewSize:", "${backgroundImageView.width}, ${backgroundImageView.height}")
-        Log.d("noteDrawViewSize:", "${noteDrawView.width}, ${noteDrawView.height}")
-        Log.d("-----------------", "")
         if(isEraseMode) noteDrawView.setEraseMode()
         else noteDrawView.setPaintProperties(Color.BLACK, 5f)
 

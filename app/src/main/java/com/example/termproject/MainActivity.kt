@@ -57,7 +57,6 @@ class MainActivity : AppCompatActivity() {
             openedUri = data?.data
             openedUri?.let {
                 handlePdfFile(it)
-                Log.d("onActivityResult", "Log")
                 saveJson()
                 openNoteViewActivity()
                 notes = null
@@ -77,7 +76,6 @@ class MainActivity : AppCompatActivity() {
     }
     private fun handlePdfFile(uri: Uri) {
         val fileHash = calculateFileHash(uri)
-        Log.d("handlePdfFile() fileHash", fileHash)
         if(File(getExternalFilesDir(null), "$fileHash.json").exists()) {
             handleJsonFile(File(getExternalFilesDir(null)
                 , "$fileHash.json"
@@ -89,7 +87,6 @@ class MainActivity : AppCompatActivity() {
             val pageCount = pdfRenderer.pageCount
             notes?.nextPage = pageCount
             for (i in 0 until pageCount) {
-                Log.d("handlePdfFile", "${notes == null}")
                 val jsonData = ListInfo(
                     unique = i,
                     nextIndex = -1,
@@ -97,7 +94,6 @@ class MainActivity : AppCompatActivity() {
                     keyIndex = -1,
                     tag = 0
                 )
-                Log.d("handlePdfFile", "Log2")
                 if (notes?.noteMap!!.isNotEmpty()) {
                     notes?.noteMap!![i - 1]?.nextIndex = notes?.noteMap!!.size
                 }
@@ -146,7 +142,6 @@ class MainActivity : AppCompatActivity() {
         val fileHash = calculateFileHash(openedUri!!)
         val fileName = "$fileHash.json"
         val file = File(getExternalFilesDir(null), fileName)
-        Log.d("넘겨 주는 파일 경로", file.absolutePath)
         if (!file.exists()) {
             Log.e("MainActivity", "File not found: ${file.absolutePath}")
             return

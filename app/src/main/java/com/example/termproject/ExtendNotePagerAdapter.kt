@@ -52,9 +52,7 @@ class ExtendNotePagerAdapter(private val context: Context,
             val unique = getUniqueFromCurrentPosition(position)
             val noteData = extendNoteMap[unique]
             val tmpBackgroundBitmap = Util.createA4WhiteBitmap(noteData!!.tag)
-            Log.d(">>>>>>>>>>>", "<<<<<<<<<<<<")
-            Log.d("noteData Tag :: ", "${noteData.tag}")
-            Log.d(">>>>>>>>>>>", "<<<<<<<<<<<<")
+
             val backgroundBitmap = tmpBackgroundBitmap.copy(Bitmap.Config.ARGB_8888, true)
             backgroundImageView.setImageBitmap(backgroundBitmap)
 
@@ -65,15 +63,9 @@ class ExtendNotePagerAdapter(private val context: Context,
             val bitmap = (if(pngFile.exists()) BitmapFactory.decodeFile(pngFile.absolutePath) else null) ?:
                 createDefaultBitmap(backgroundBitmap.width, backgroundBitmap.height, context)
             val convertedNoteBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-            Log.e("convertedNoteBitmap size", "width: ${convertedNoteBitmap.width}, height: ${convertedNoteBitmap.height}")
 
             noteDrawView.setBitmap(convertedNoteBitmap)
 
-            Log.d("-----------------", "*******************************")
-            Log.d("Absolute Path", "${pngFile.absolutePath}")
-            Log.d("backgroundSize:", "${backgroundBitmap.width}, ${backgroundBitmap.height}")
-            Log.d("noteDrawViewSize:", "${noteDrawView.width}, ${noteDrawView.height}")
-            Log.d("-----------------", "*******************************")
             if(isEraseMode) noteDrawView.setEraseMode()
             else noteDrawView.setPaintProperties(Color.BLACK, 5f)
 
@@ -112,8 +104,6 @@ class ExtendNotePagerAdapter(private val context: Context,
     private fun getUniqueFromCurrentPosition(currentPosition: Int) :Int {
         var cur = extendNoteMap.values.find { it.prevIndex == -1 }
         var cnt = 0
-        Log.d("where? ", "${this.javaClass.name}")
-        Log.d("getUniqueFromCurrentPosition", "currentPosition: $currentPosition")
         while(cnt < currentPosition) {
             cur = extendNoteMap[cur!!.nextIndex]
             cnt += 1
@@ -144,7 +134,6 @@ class ExtendNotePagerAdapter(private val context: Context,
             extendNoteMap[lastElementUnique]!!.nextIndex = nextPage
         }
         extendNoteMap.put(nextPage, element)
-        Log.e("addPageBeforeLast", "extendNoteMapSize: ${extendNoteMap.size}")
         nextPage += 1
         // notifyDataSetChanged()
     }

@@ -60,7 +60,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
             loadNoteListFromFile(jsonUri!!)
             processNoteList()
 
-            Log.d("Ex onCreate", "${currentPosition}")
             val unique = notes.noteMap[currentPosition]!!.unique
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
@@ -120,7 +119,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
      *********************************/
 
     private fun getExtendUniqueFromCurrentPosition() :Int {
-        Log.d("getExtendUniqueFromCurrentPosition", "currentPosition = $currentPosition, currentPdfPage = $currentPdfPage")
         var cur = extendedListMap[currentPdfPage]!!.values.find { it.prevIndex == -1 } // notes.noteMap[notes.noteMap[currentPdfPage]!!.keyIndex]
         var cnt = 0
         while(cnt < currentPosition) {
@@ -133,7 +131,48 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
     private fun setupViewSettings() {
         // Extend 버튼 클릭 리스너 설정
         findViewById<Button>(R.id.deleteButton).setOnClickListener { // 현재 페이지 삭제
-            
+            if(currentPosition == (extendedListMap[currentPdfPage]?.size ?: 0)) {
+                return@setOnClickListener
+            }
+            val unique = getExtendUniqueFromCurrentPosition()
+            val deleteElement = notes.noteMap[unique]
+
+            if(deleteElement!!.prevIndex == -1 && deleteElement.nextIndex == -1) {
+                notes.noteMap[deleteElement.keyIndex]!!.keyIndex = -1
+            }
+            if(deleteElement!!.prevIndex != -1) {
+                notes.noteMap[deleteElement.prevIndex]!!.nextIndex = deleteElement.nextIndex
+            }
+            if(deleteElement!!.nextIndex != -1) {
+                notes.noteMap[deleteElement.nextIndex]!!.prevIndex = deleteElement.prevIndex
+            }
+
+            val fileDir = File(getExternalFilesDir(null), "$fileHash")
+            val file = File(fileDir, "${unique}.png")
+            file.delete()
+
+            notes.noteMap.remove(unique)
+            extendedListMap[currentPdfPage]!!.remove(unique)
+
+            saveToJson(jsonUri!!)
+            loadNoteListFromFile(jsonUri!!)
+            processNoteList()
+            val viewPager = findViewById<ViewPager>(R.id.viewPager)
+            val newAdapter = ExtendNotePagerAdapter(
+                this,
+                this,
+                isEraseMode,
+                notes.nextPage,
+                unique,
+                openPdfRenderer(pdfUri!!),
+                fileHash!!,
+                extendedListMap[currentPdfPage] ?: emptyMap<Int, ListInfo>().toMutableMap(),
+                viewPager
+            )
+            adapter = newAdapter
+            viewPager.adapter = adapter
+            // adapter.notifyDataSetChanged()
+
         }
 
         findViewById<Button>(R.id.saveButton).setOnClickListener {

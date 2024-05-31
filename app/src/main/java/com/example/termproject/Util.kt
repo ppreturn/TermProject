@@ -43,9 +43,9 @@ object Util {
         val height = (297 * dpi / 25.4).toInt()
 
         val bitmap = if(direction == 2) {
-            Bitmap.createBitmap(height, width, Bitmap.Config.ARGB_8888)
-        } else {
             Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        } else {
+            Bitmap.createBitmap(height, width, Bitmap.Config.ARGB_8888)
         }
         bitmap.eraseColor(Color.WHITE)
         return bitmap

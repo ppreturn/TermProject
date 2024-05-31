@@ -38,7 +38,3 @@
     </application>
 
 </manifest>
-
-          <!--
-        android:configChanges="orientation|screenSize"
-        android:screenOrientation="portrait" -->
