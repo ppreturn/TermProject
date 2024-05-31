@@ -10,6 +10,7 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.viewpager.widget.ViewPager
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -32,7 +33,7 @@ class MainNoteViewActivity : AppCompatActivity() {
     private val extendedList = mutableMapOf<Int, MutableList<ListInfo>>()
     private var updateJob: Job? = null
     private var currentPosition: Int = 0
-    private lateinit var adapter: NotePagerAdapter
+    private lateinit var adapter: MainNotePagerAdapter
 
     private var jsonUri: Uri? = null
     private var pdfUri: Uri? = null
@@ -62,7 +63,7 @@ class MainNoteViewActivity : AppCompatActivity() {
             processNoteList()
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
-            adapter = NotePagerAdapter(this, openPdfRenderer(pdfUri!!), fileHash!!, mainList, viewPager)
+            adapter = MainNotePagerAdapter(this, openPdfRenderer(pdfUri!!), fileHash!!, mainList, viewPager)
             viewPager.adapter = adapter
 
             viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
@@ -87,7 +88,15 @@ class MainNoteViewActivity : AppCompatActivity() {
 
         // Extend 버튼 클릭 리스너 설정
         findViewById<Button>(R.id.extendButton).setOnClickListener {
-            val intent = Intent(this, ExtendNoteViewActivity::class.java)
+            val file = File(cacheDir, "extendList.json")
+            val extendJsonUri = FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
+            saveToExtendJson(extendJsonUri)
+            val intent = Intent(this, ExtendNoteViewActivity::class.java).apply {
+                putExtra("extendJsonUri", extendJsonUri.toString())
+                putExtra("pdfUri", pdfUriString)
+                putExtra("fileHash", fileHash)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             startActivity(intent)
         }
 
@@ -221,6 +230,24 @@ class MainNoteViewActivity : AppCompatActivity() {
         }
         val modifiedNotes = Notes(notes.nextPage, modifiedNoteList)
         val json = gson.toJson(modifiedNotes).replace("\n", "")
+        contentResolver.openOutputStream(uri)?.use { outputStream ->
+            OutputStreamWriter(outputStream).use { writer ->
+                writer.write(json)
+            }
+        }
+    }
+
+    private fun saveToExtendJson(uri: Uri) {
+        val extendedNoteList = ArrayList<ListInfo>()
+        extendedList[currentPosition]?.forEachIndexed { i, element ->
+            val copyElement = element
+            copyElement.prevIndex = if(i != 0) extendedNoteList.size - 1 else -1
+            copyElement.nextIndex = if(i != extendedList[currentPosition]!!.size - 1) extendedNoteList.size + 1 else -1
+            extendedNoteList.add(copyElement)
+        }
+
+        val extendedNotes = Notes(extendedNoteList.size, extendedNoteList)
+        val json = gson.toJson(extendedNotes).replace("\n", "")
         contentResolver.openOutputStream(uri)?.use { outputStream ->
             OutputStreamWriter(outputStream).use { writer ->
                 writer.write(json)

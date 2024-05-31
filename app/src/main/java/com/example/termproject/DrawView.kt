@@ -3,6 +3,7 @@ package com.example.termproject
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
@@ -11,8 +12,8 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var drawPath: Path = Path()
     private var drawPaint: Paint = Paint()
     private var canvasPaint: Paint? = null
-    private var drawCanvas: Canvas? = null
-    private var canvasBitmap: Bitmap? = null
+    private var visibleDrawCanvas: Canvas? = null
+    private var visibleCanvasBitmap: Bitmap? = null
     private var imageView: ImageView? = null
     private var contentRect: RectF = RectF()
 
@@ -60,15 +61,15 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
                 contentRect.set(dx, dy, dx + intrinsicWidth * scale, dy + intrinsicHeight * scale)
 
-                if (canvasBitmap == null) {
-                    canvasBitmap = Bitmap.createBitmap(contentRect.width().toInt(), contentRect.height().toInt(), Bitmap.Config.ARGB_8888)
-                    drawCanvas = Canvas(canvasBitmap!!)
-                } else if(canvasBitmap!!.width != contentRect.width().toInt() || canvasBitmap!!.height != contentRect.height().toInt()) {
+                if (visibleCanvasBitmap == null) {
+                    visibleCanvasBitmap = Bitmap.createBitmap(contentRect.width().toInt(), contentRect.height().toInt(), Bitmap.Config.ARGB_8888)
+                    visibleDrawCanvas = Canvas(visibleCanvasBitmap!!)
+                } else if(visibleCanvasBitmap!!.width != contentRect.width().toInt() || visibleCanvasBitmap!!.height != contentRect.height().toInt()) {
                     val newWidth = contentRect.width().toInt()
                     val newHeight = contentRect.height().toInt()
 
-                    canvasBitmap = Bitmap.createScaledBitmap(canvasBitmap!!, newWidth, newHeight, true)
-                    drawCanvas = Canvas(canvasBitmap!!)
+                    visibleCanvasBitmap = Bitmap.createScaledBitmap(visibleCanvasBitmap!!, newWidth, newHeight, true)
+                    visibleDrawCanvas = Canvas(visibleCanvasBitmap!!)
                 }
 
                 layoutParams.width = contentRect.width().toInt()
@@ -80,7 +81,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        canvas.drawBitmap(canvasBitmap!!, 0f, 0f, canvasPaint)
+        canvas.drawBitmap(visibleCanvasBitmap!!, 0f, 0f, canvasPaint)
         canvas.drawPath(drawPath, drawPaint)
     }
 
@@ -91,32 +92,42 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
             val touchX = event.x
             val touchY = event.y
+            Log.d("onTouchEvent", "touchX: $touchX, touchY: $touchY")
 
             // 터치 위치가 콘텐츠의 범위 내에 있는지 확인
             if (contentRect.contains(touchX, touchY)) {
                 when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
+                    MotionEvent.ACTION_DOWN -> { // 펜이 처음으로 화면과 닿았을 때
                         drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
                     }
-                    MotionEvent.ACTION_MOVE -> {
-                        drawPath.lineTo(touchX - contentRect.left, touchY - contentRect.top)
-                        if(erase) {
-                            drawCanvas?.drawPath(drawPath, drawPaint)
+                    MotionEvent.ACTION_MOVE -> { // 펜이 화면에서 움직이는 중.
+                        if(drawPath.isEmpty) // 펜이 이전에 화면과 닿았지만 화면 밖으로 나갔다가 다시 들어온 상태
+                            drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top) // 펜이 닿은 위치 좌표로 이동
+                        drawPath.lineTo(touchX - contentRect.left, touchY - contentRect.top) // 선을 그음.
+                        if(erase) { // 지우기 모드일 때
+                            visibleDrawCanvas?.drawPath(drawPath, drawPaint)
                             drawPath.reset()
                             drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
                         }
-                        invalidate() // 이걸 없애면 가끔씩 좋은일이 일어납니다.
+                        invalidate()
                     }
-                    MotionEvent.ACTION_UP -> {
-                        if(!erase) {
-                            drawCanvas?.drawPath(drawPath, drawPaint)
+                    MotionEvent.ACTION_UP -> { // 선을 땐 경우.
+                        if(!erase) { // 지우기 모드가 아닐 때
+                            visibleDrawCanvas?.drawPath(drawPath, drawPaint)
                             drawPath.reset()
                         }
-                        invalidate() // 이걸 없애면 가끔씩 좋은일이 일어납니다.
+                        invalidate()
                     }
                     else -> return false
                 }
 
+                invalidate()
+                return true
+            } else { // 펜이 화면 밖에 있는 경우
+                if(!drawPath.isEmpty) { // 그런데 선을 이미 그은 상태인 경우.
+                    visibleDrawCanvas?.drawPath(drawPath, drawPaint)
+                    drawPath.reset()
+                }
                 invalidate()
                 return true
             }
@@ -125,17 +136,19 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     }
 
     fun getBitmap(): Bitmap {
-        return canvasBitmap!!
+        return visibleCanvasBitmap!!
     }
 
     fun setBitmap(bitmap: Bitmap) {
-        canvasBitmap = bitmap
-        drawCanvas = Canvas(canvasBitmap!!)
+
+
+        visibleCanvasBitmap = bitmap
+        visibleDrawCanvas = Canvas(visibleCanvasBitmap!!)
         invalidate()
     }
 
     fun clear() {
-        canvasBitmap?.eraseColor(Color.TRANSPARENT)
+        visibleCanvasBitmap?.eraseColor(Color.TRANSPARENT)
         invalidate()
     }
 
