@@ -10,6 +10,7 @@ import android.widget.ImageView
 
 class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var drawPath: Path = Path()
+    private var visibleDrawPath: Path = Path()
     private var drawPaint: Paint = Paint()
     private var canvasPaint: Paint? = null
     private var visibleDrawCanvas: Canvas? = null
@@ -17,11 +18,19 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var imageView: ImageView? = null
     private var contentRect: RectF = RectF()
 
+    private var drawCanvas: Canvas? = null
+    private var canvasBitmap: Bitmap? = null
+
     private var erase: Boolean = false
     init {
         setupDrawing()
     }
 
+
+    private fun getScale(): Float {
+        if (canvasBitmap == null || visibleCanvasBitmap == null) return 1f
+        return canvasBitmap!!.width.toFloat() / visibleCanvasBitmap!!.width.toFloat()
+    }
     private fun setupDrawing() {
         drawPaint.color = Color.BLACK
         drawPaint.isAntiAlias = true
@@ -82,7 +91,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         canvas.drawBitmap(visibleCanvasBitmap!!, 0f, 0f, canvasPaint)
-        canvas.drawPath(drawPath, drawPaint)
+        canvas.drawPath(visibleDrawPath, drawPaint)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -92,31 +101,18 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
             val touchX = event.x
             val touchY = event.y
-            Log.d("onTouchEvent", "touchX: $touchX, touchY: $touchY")
 
             // 터치 위치가 콘텐츠의 범위 내에 있는지 확인
             if (contentRect.contains(touchX, touchY)) {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> { // 펜이 처음으로 화면과 닿았을 때
-                        drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
+                        onActionDown(touchX, touchY)
                     }
                     MotionEvent.ACTION_MOVE -> { // 펜이 화면에서 움직이는 중.
-                        if(drawPath.isEmpty) // 펜이 이전에 화면과 닿았지만 화면 밖으로 나갔다가 다시 들어온 상태
-                            drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top) // 펜이 닿은 위치 좌표로 이동
-                        drawPath.lineTo(touchX - contentRect.left, touchY - contentRect.top) // 선을 그음.
-                        if(erase) { // 지우기 모드일 때
-                            visibleDrawCanvas?.drawPath(drawPath, drawPaint)
-                            drawPath.reset()
-                            drawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
-                        }
-                        invalidate()
+                        onActionMove(touchX, touchY)
                     }
                     MotionEvent.ACTION_UP -> { // 선을 땐 경우.
-                        if(!erase) { // 지우기 모드가 아닐 때
-                            visibleDrawCanvas?.drawPath(drawPath, drawPaint)
-                            drawPath.reset()
-                        }
-                        invalidate()
+                        onActionUp(touchX, touchY)
                     }
                     else -> return false
                 }
@@ -124,8 +120,10 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 invalidate()
                 return true
             } else { // 펜이 화면 밖에 있는 경우
-                if(!drawPath.isEmpty) { // 그런데 선을 이미 그은 상태인 경우.
-                    visibleDrawCanvas?.drawPath(drawPath, drawPaint)
+                if(!visibleDrawPath.isEmpty) { // 그런데 선을 이미 그은 상태인 경우.
+                    visibleDrawCanvas?.drawPath(visibleDrawPath, drawPaint)
+                    visibleDrawPath.reset()
+                    drawCanvas?.drawPath(drawPath, drawPaint)
                     drawPath.reset()
                 }
                 invalidate()
@@ -135,12 +133,48 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         return false
     }
 
+
+    private fun onActionDown(touchX: Float, touchY: Float) {
+        visibleDrawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
+        drawPath.moveTo(touchX*getScale() - contentRect.left, touchY*getScale() - contentRect.top)
+    }
+
+    private fun onActionMove(touchX: Float, touchY: Float) {
+        if(visibleDrawPath.isEmpty) {// 펜이 이전에 화면과 닿았지만 화면 밖으로 나갔다가 다시 들어온 상태
+            visibleDrawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top) // 펜이 닿은 위치 좌표로 이동
+            drawPath.moveTo(touchX*getScale() - contentRect.left, touchY*getScale() - contentRect.top)
+        }
+        visibleDrawPath.lineTo(touchX - contentRect.left, touchY - contentRect.top) // 선을 그음.
+        drawPath.lineTo(touchX*getScale() - contentRect.left, touchY*getScale() - contentRect.top)
+        if(erase) { // 지우기 모드일 때
+            visibleDrawCanvas?.drawPath(visibleDrawPath, drawPaint)
+            drawCanvas?.drawPath(drawPath, drawPaint)
+            visibleDrawPath.reset()
+            drawPath.reset()
+            visibleDrawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top)
+            drawPath.moveTo(touchX*getScale() - contentRect.left, touchY*getScale() - contentRect.top)
+        }
+        invalidate()
+    }
+
+    private fun onActionUp(touchX: Float, touchY: Float) {
+        if(!erase) { // 지우기 모드가 아닐 때
+            visibleDrawCanvas?.drawPath(visibleDrawPath, drawPaint)
+            visibleDrawPath.reset()
+            drawCanvas?.drawPath(drawPath, drawPaint)
+            drawPath.reset()
+        }
+        invalidate()
+    }
+
+
     fun getBitmap(): Bitmap {
-        return visibleCanvasBitmap!!
+        return canvasBitmap!!
     }
 
     fun setBitmap(bitmap: Bitmap) {
-
+        canvasBitmap = bitmap
+        drawCanvas = Canvas(canvasBitmap!!)
 
         visibleCanvasBitmap = bitmap
         visibleDrawCanvas = Canvas(visibleCanvasBitmap!!)
@@ -154,7 +188,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     fun setPaintProperties(color: Int, strokeWidth: Float) {
         drawPaint.color = color
-        drawPaint.strokeWidth = strokeWidth
+        drawPaint.strokeWidth = strokeWidth*getScale()
         drawPaint.xfermode = null
         erase = false
     }
@@ -162,7 +196,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     fun setEraseMode() {
         drawPaint.color = Color.TRANSPARENT
         drawPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-        drawPaint.strokeWidth = 50f
+        drawPaint.strokeWidth = 50f*getScale()
         erase = true
     }
 }
