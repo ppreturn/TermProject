@@ -188,7 +188,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     fun setPaintProperties(color: Int, strokeWidth: Float) {
         drawPaint.color = color
-        drawPaint.strokeWidth = strokeWidth*getScale()
+        drawPaint.strokeWidth = strokeWidth
         drawPaint.xfermode = null
         erase = false
     }
@@ -196,7 +196,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     fun setEraseMode() {
         drawPaint.color = Color.TRANSPARENT
         drawPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-        drawPaint.strokeWidth = 50f*getScale()
+        drawPaint.strokeWidth = 50f
         erase = true
     }
 }
