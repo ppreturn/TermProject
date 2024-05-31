@@ -1,5 +1,5 @@
 package com.example.termproject
 
 interface onExtendButtonClickListener {
-    fun modifyNotesAndSaveJsonFile(nextPage: Int, extendList:MutableMap<Int, ListInfo>)
+    fun modifyNotesAndSaveJsonFile(nextPage: Int, extendListMap:MutableMap<Int, ListInfo>)
 }

@@ -81,6 +81,8 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                     val newWidth = contentRect.width().toInt()
                     val newHeight = contentRect.height().toInt()
 
+                    Log.e("DrawView", "newWidth: $newWidth, newHeight: $newHeight")
+
                     visibleCanvasBitmap = Bitmap.createScaledBitmap(visibleCanvasBitmap!!, newWidth, newHeight, true)
                     visibleDrawCanvas = Canvas(visibleCanvasBitmap!!)
                 }

@@ -51,20 +51,29 @@ class ExtendNotePagerAdapter(private val context: Context,
 
             val unique = getUniqueFromCurrentPosition(position)
             val noteData = extendNoteMap[unique]
-
-            val backgroundBitmap = Util.createA4WhiteBitmap(noteData!!.tag)
+            val tmpBackgroundBitmap = Util.createA4WhiteBitmap(noteData!!.tag)
+            Log.d(">>>>>>>>>>>", "<<<<<<<<<<<<")
+            Log.d("noteData Tag :: ", "${noteData.tag}")
+            Log.d(">>>>>>>>>>>", "<<<<<<<<<<<<")
+            val backgroundBitmap = tmpBackgroundBitmap.copy(Bitmap.Config.ARGB_8888, true)
             backgroundImageView.setImageBitmap(backgroundBitmap)
 
             noteDrawView.setImageView(backgroundImageView)
 
             val fileDir = File(context.getExternalFilesDir(null), "${fileHash}")
             val pngFile = File(fileDir, "${unique}.png")
-
             val bitmap = (if(pngFile.exists()) BitmapFactory.decodeFile(pngFile.absolutePath) else null) ?:
                 createDefaultBitmap(backgroundBitmap.width, backgroundBitmap.height, context)
             val convertedNoteBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            Log.e("convertedNoteBitmap size", "width: ${convertedNoteBitmap.width}, height: ${convertedNoteBitmap.height}")
+
             noteDrawView.setBitmap(convertedNoteBitmap)
 
+            Log.d("-----------------", "*******************************")
+            Log.d("Absolute Path", "${pngFile.absolutePath}")
+            Log.d("backgroundSize:", "${backgroundBitmap.width}, ${backgroundBitmap.height}")
+            Log.d("noteDrawViewSize:", "${noteDrawView.width}, ${noteDrawView.height}")
+            Log.d("-----------------", "*******************************")
             if(isEraseMode) noteDrawView.setEraseMode()
             else noteDrawView.setPaintProperties(Color.BLACK, 5f)
 
@@ -103,6 +112,7 @@ class ExtendNotePagerAdapter(private val context: Context,
     private fun getUniqueFromCurrentPosition(currentPosition: Int) :Int {
         var cur = extendNoteMap.values.find { it.prevIndex == -1 }
         var cnt = 0
+        Log.d("where? ", "${this.javaClass.name}")
         Log.d("getUniqueFromCurrentPosition", "currentPosition: $currentPosition")
         while(cnt < currentPosition) {
             cur = extendNoteMap[cur!!.nextIndex]
@@ -120,13 +130,13 @@ class ExtendNotePagerAdapter(private val context: Context,
      * type 3 >> Landscape
      *
      ***************************************/
-    private fun addPageBeforeLast(type: Int) {
+    private fun addPageBeforeLast(newTag: Int) {
         var element = ListInfo(
             unique = nextPage,
             nextIndex = -1,
             prevIndex = -1,
             keyIndex = parentKeyIndex,
-            tag = type
+            tag = newTag
         )
         if(extendNoteMap.size > 0) {
             val lastElementUnique = (extendNoteMap.values.find { it.nextIndex == -1 })!!.unique
@@ -136,7 +146,7 @@ class ExtendNotePagerAdapter(private val context: Context,
         extendNoteMap.put(nextPage, element)
         Log.e("addPageBeforeLast", "extendNoteMapSize: ${extendNoteMap.size}")
         nextPage += 1
-        notifyDataSetChanged()
+        // notifyDataSetChanged()
     }
 
     override fun destroyItem(container: ViewGroup, position: Int, obj: Any) {
@@ -146,5 +156,9 @@ class ExtendNotePagerAdapter(private val context: Context,
 
     fun getDrawViewAt(position: Int): DrawView? {
         return viewPager.findViewWithTag<View>(position)?.findViewById(R.id.noteDrawView)
+    }
+
+    override fun getItemPosition(`object`: Any): Int {
+        return POSITION_NONE // notifyDataSetChanged()를 위해 필요
     }
 }

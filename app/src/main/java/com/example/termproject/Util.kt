@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import java.io.File
 import java.io.FileOutputStream
-
 data class ListInfo(
     val unique: Int,
     var nextIndex: Int,
@@ -17,6 +16,9 @@ data class Notes(
     val noteMap: MutableMap<Int, ListInfo>
 )
 object Util {
+    const val a4Width = 2480 // A4 용지 너비 (픽셀, 300dpi 기준)
+    const val a4Height = 3508 // A4 용지 높이 (픽셀, 300dpi 기준)
+
     fun saveImage(bitmap: Bitmap, fileDir: File, fileName: String) {
         if (!fileDir.exists()) {
             fileDir.mkdirs()
@@ -36,7 +38,6 @@ object Util {
             }
         }
     }
-
     fun createA4WhiteBitmap(direction: Int, dpi: Int = 300): Bitmap {
         val width = (210 * dpi / 25.4).toInt()
         val height = (297 * dpi / 25.4).toInt()

@@ -98,15 +98,17 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
         updateJob?.cancel()
         updateJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
-                delay(200)
-                val noteDrawView = adapter.getDrawViewAt(currentPosition)
-                noteDrawView?.let {
-                    val bitmap = it.getBitmap()
-                    val saveDir = File(getExternalFilesDir(null), "$fileHash")
-                    val unique = getExtendUniqueFromCurrentPosition()
-                    Util.saveImage(bitmap, saveDir, "${unique}.png")
+                if(currentPosition < (extendedListMap[currentPdfPage]?.size ?: 0)) {
+                    delay(200)
+                    val noteDrawView = adapter.getDrawViewAt(currentPosition)
+                    noteDrawView?.let {
+                        val bitmap = it.getBitmap()
+                        val saveDir = File(getExternalFilesDir(null), "$fileHash")
+                        val unique = getExtendUniqueFromCurrentPosition()
+                        Util.saveImage(bitmap, saveDir, "${unique}.png")
+                    }
+                    saveToJson(jsonUri!!)
                 }
-                saveToJson(jsonUri!!)
             }
         }
     }
@@ -118,7 +120,8 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
      *********************************/
 
     private fun getExtendUniqueFromCurrentPosition() :Int {
-        var cur = notes.noteMap[notes.noteMap[currentPdfPage]!!.keyIndex]
+        Log.d("getExtendUniqueFromCurrentPosition", "currentPosition = $currentPosition, currentPdfPage = $currentPdfPage")
+        var cur = extendedListMap[currentPdfPage]!!.values.find { it.prevIndex == -1 } // notes.noteMap[notes.noteMap[currentPdfPage]!!.keyIndex]
         var cnt = 0
         while(cnt < currentPosition) {
             cur = notes.noteMap[cur!!.nextIndex]
@@ -130,7 +133,7 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
     private fun setupViewSettings() {
         // Extend 버튼 클릭 리스너 설정
         findViewById<Button>(R.id.deleteButton).setOnClickListener { // 현재 페이지 삭제
-
+            
         }
 
         findViewById<Button>(R.id.saveButton).setOnClickListener {
@@ -244,7 +247,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
 
         mainListMap.forEach { (i, element) ->
             element.keyIndex = -1
-            element.tag = 0
             modifiedNoteMap.put(i, element)
         }
         extendedListMap.forEach { (key, map) ->
@@ -252,7 +254,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
                 map.forEach { (i, element) ->
                     element.keyIndex = key
                     if(element.prevIndex == -1) modifiedNoteMap[element.keyIndex]!!.keyIndex = i
-                    element.tag = 1
                     modifiedNoteMap.put(i, element)
                 }
             }
@@ -297,5 +298,8 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
         notes.nextPage = nextPage
         extendedListMap[currentPdfPage] = extendListMap
         saveToJson(jsonUri!!)
+        loadNoteListFromFile(jsonUri!!)
+        processNoteList()
+        adapter.notifyDataSetChanged()
     }
 }

@@ -225,7 +225,6 @@ class MainNoteViewActivity : AppCompatActivity() {
 
         mainListMap.forEach { (i, element) ->
             element.keyIndex = -1
-            element.tag = 0
             modifiedNoteMap.put(i, element)
         }
         extendedListMap.forEach { (key, map) ->
@@ -233,7 +232,6 @@ class MainNoteViewActivity : AppCompatActivity() {
                 map.forEach { (i, element) ->
                     element.keyIndex = key
                     if(element.prevIndex == -1) modifiedNoteMap[element.keyIndex]!!.keyIndex = i
-                    element.tag = 1
                     modifiedNoteMap.put(i, element)
                 }
             }
