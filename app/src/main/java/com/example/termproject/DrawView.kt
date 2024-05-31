@@ -9,6 +9,10 @@ import android.view.View
 import android.widget.ImageView
 
 class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
+
+    private var defaultPenWidth: Float = 5f
+    private var defaultEraserWidth: Float = 50f
+
     private var drawPath: Path = Path()
     private var visibleDrawPath: Path = Path()
     private var drawPaint: Paint = Paint()
@@ -34,7 +38,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private fun setupDrawing() {
         drawPaint.color = Color.BLACK
         drawPaint.isAntiAlias = true
-        drawPaint.strokeWidth = 5f
+        drawPaint.strokeWidth = defaultPenWidth
         drawPaint.style = Paint.Style.STROKE
         drawPaint.strokeJoin = Paint.Join.ROUND
         drawPaint.strokeCap = Paint.Cap.ROUND
@@ -90,6 +94,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        drawPaint.strokeWidth = defaultPenWidth/getScale()
         canvas.drawBitmap(visibleCanvasBitmap!!, 0f, 0f, canvasPaint)
         canvas.drawPath(visibleDrawPath, drawPaint)
     }
@@ -121,8 +126,10 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 return true
             } else { // 펜이 화면 밖에 있는 경우
                 if(!visibleDrawPath.isEmpty) { // 그런데 선을 이미 그은 상태인 경우.
+                    drawPaint.strokeWidth = (if (erase) defaultEraserWidth else defaultPenWidth)/getScale()
                     visibleDrawCanvas?.drawPath(visibleDrawPath, drawPaint)
                     visibleDrawPath.reset()
+                    drawPaint.strokeWidth = (if (erase) defaultEraserWidth else defaultPenWidth)
                     drawCanvas?.drawPath(drawPath, drawPaint)
                     drawPath.reset()
                 }
@@ -144,10 +151,14 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             visibleDrawPath.moveTo(touchX - contentRect.left, touchY - contentRect.top) // 펜이 닿은 위치 좌표로 이동
             drawPath.moveTo(touchX*getScale() - contentRect.left, touchY*getScale() - contentRect.top)
         }
+        drawPaint.strokeWidth = defaultPenWidth/getScale()
         visibleDrawPath.lineTo(touchX - contentRect.left, touchY - contentRect.top) // 선을 그음.
+        drawPaint.strokeWidth = defaultPenWidth
         drawPath.lineTo(touchX*getScale() - contentRect.left, touchY*getScale() - contentRect.top)
         if(erase) { // 지우기 모드일 때
+            drawPaint.strokeWidth = defaultEraserWidth/getScale()
             visibleDrawCanvas?.drawPath(visibleDrawPath, drawPaint)
+            drawPaint.strokeWidth = defaultEraserWidth
             drawCanvas?.drawPath(drawPath, drawPaint)
             visibleDrawPath.reset()
             drawPath.reset()
@@ -159,8 +170,10 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private fun onActionUp(touchX: Float, touchY: Float) {
         if(!erase) { // 지우기 모드가 아닐 때
+            drawPaint.strokeWidth = defaultPenWidth/getScale()
             visibleDrawCanvas?.drawPath(visibleDrawPath, drawPaint)
             visibleDrawPath.reset()
+            drawPaint.strokeWidth = defaultPenWidth
             drawCanvas?.drawPath(drawPath, drawPaint)
             drawPath.reset()
         }
@@ -196,7 +209,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     fun setEraseMode() {
         drawPaint.color = Color.TRANSPARENT
         drawPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
-        drawPaint.strokeWidth = 50f
+        drawPaint.strokeWidth = defaultEraserWidth
         erase = true
     }
 }

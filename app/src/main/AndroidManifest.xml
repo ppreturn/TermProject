@@ -33,7 +33,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".MainNoteViewActivity"></activity>
+        <activity android:name=".MainNoteViewActivity" />
         <activity android:name=".ExtendNoteViewActivity" />
     </application>
 

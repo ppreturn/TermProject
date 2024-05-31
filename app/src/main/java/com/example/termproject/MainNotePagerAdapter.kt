@@ -20,9 +20,9 @@ class MainNotePagerAdapter(private val context: Context,
                            public var isEraseMode: Boolean,
                            private val pdfRenderer: PdfRenderer,
                            private val fileHash: String,
-                           private val noteList: List<ListInfo>,
+                           private val noteMap: MutableMap<Int, ListInfo>,
                            private val viewPager: ViewPager) : PagerAdapter() {
-    override fun getCount(): Int = noteList.size
+    override fun getCount(): Int = noteMap.size
 
     override fun isViewFromObject(view: View, obj: Any): Boolean = view == obj
 
@@ -33,7 +33,7 @@ class MainNotePagerAdapter(private val context: Context,
         val backgroundImageView = view.findViewById<ImageView>(R.id.backgroundImageView)
         val noteDrawView = view.findViewById<DrawView>(R.id.noteDrawView)
 
-        val noteData = noteList[position]
+        val noteData = noteMap[position]!!
         val pdfPage = pdfRenderer.openPage(position)
 
         val backgroundBitmap = getScaledPdfBitmap(pdfPage, context)
@@ -64,6 +64,16 @@ class MainNotePagerAdapter(private val context: Context,
 
         container.addView(view)
         return view
+    }
+
+    private fun getUniqueFromPosition(position: Int) :Int {
+        var element = noteMap.values.find { it.prevIndex == -1 }
+        var cnt = 0
+        while(cnt < position) {
+            cnt += 1
+            element = noteMap[element!!.nextIndex]
+        }
+        return element!!.unique
     }
 
     private fun getScaleFactor(pdfPage: PdfRenderer.Page, context: Context): Float{

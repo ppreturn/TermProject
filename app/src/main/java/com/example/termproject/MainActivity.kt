@@ -27,19 +27,6 @@ import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.security.MessageDigest
 
-data class ListInfo(
-    val unique: Int,
-    var nextIndex: Int,
-    var prevIndex: Int,
-    var keyIndex: Int,
-    var tag: Int
-)
-
-data class Notes(
-    var nextPage: Int,
-    val noteList: ArrayList<ListInfo>
-)
-
 class MainActivity : AppCompatActivity() {
     private val OPEN_FILE_REQUEST_CODE = 1
     private var notes: Notes? = null
@@ -53,7 +40,7 @@ class MainActivity : AppCompatActivity() {
 
         val openFileButton: Button = findViewById(R.id.openFileButton)
 
-        notes = Notes(0, arrayListOf())
+        notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
 
         openFileButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -100,21 +87,22 @@ class MainActivity : AppCompatActivity() {
         contentResolver.openFileDescriptor(uri, "r")?.use { parcelFileDescriptor ->
             val pdfRenderer = PdfRenderer(parcelFileDescriptor)
             val pageCount = pdfRenderer.pageCount
+            notes?.nextPage = pageCount
             for (i in 0 until pageCount) {
                 Log.d("handlePdfFile", "${notes == null}")
                 val jsonData = ListInfo(
                     unique = i,
                     nextIndex = -1,
-                    prevIndex = if (notes?.noteList!!.isNotEmpty()) notes?.noteList!!.size - 1 else -1,
+                    prevIndex = if (notes?.noteMap!!.isNotEmpty()) notes?.noteMap!!.size - 1 else -1,
                     keyIndex = -1,
                     tag = 0
                 )
                 Log.d("handlePdfFile", "Log2")
-                if (notes?.noteList!!.isNotEmpty()) {
-                    notes?.noteList!!.last().nextIndex = notes?.noteList!!.size
+                if (notes?.noteMap!!.isNotEmpty()) {
+                    notes?.noteMap!![i - 1]?.nextIndex = notes?.noteMap!!.size
                 }
 
-                notes?.noteList!!.add(jsonData)
+                notes?.noteMap!![i] = jsonData
             }
         }
     }

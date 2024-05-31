@@ -26,11 +26,12 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 class MainNoteViewActivity : AppCompatActivity() {
+
     private lateinit var fileDescriptor: ParcelFileDescriptor
 
     private lateinit var notes : Notes
-    private val mainList = mutableListOf<ListInfo>()
-    private val extendedList = mutableMapOf<Int, MutableList<ListInfo>>()
+    private var mainListMap = mutableMapOf<Int, ListInfo>()
+    private var extendedListMap = mutableMapOf<Int, MutableMap<Int, ListInfo>>()
     private var updateJob: Job? = null
     private var currentPosition: Int = 0
     private lateinit var adapter: MainNotePagerAdapter
@@ -63,7 +64,7 @@ class MainNoteViewActivity : AppCompatActivity() {
             processNoteList()
 
             val viewPager = findViewById<ViewPager>(R.id.viewPager)
-            adapter = MainNotePagerAdapter(this, isEraseMode, openPdfRenderer(pdfUri!!), fileHash!!, mainList, viewPager)
+            adapter = MainNotePagerAdapter(this, isEraseMode, openPdfRenderer(pdfUri!!), fileHash!!, mainListMap, viewPager)
             viewPager.adapter = adapter
 
             viewPager.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
@@ -78,7 +79,7 @@ class MainNoteViewActivity : AppCompatActivity() {
 
 
             })
-            
+
             startUpdateJob()
         }
 
@@ -89,14 +90,12 @@ class MainNoteViewActivity : AppCompatActivity() {
         updateJob?.cancel()
         updateJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
-                Log.d("**** >> startUpdateJob", "isEraseMode : $isEraseMode")
                 delay(200)
                 val noteDrawView = adapter.getDrawViewAt(currentPosition)
                 noteDrawView?.let {
                     val bitmap = it.getBitmap()
-                    notes.noteList[currentPosition].unique // todo with unique number
                     val saveDir = File(getExternalFilesDir(null), "$fileHash")
-                    Util.saveImage(bitmap, saveDir, "${notes.noteList[currentPosition].unique}.png")
+                    Util.saveImage(bitmap, saveDir, "${notes.noteMap[currentPosition]?.unique}.png")
                 }
             }
         }
@@ -105,13 +104,11 @@ class MainNoteViewActivity : AppCompatActivity() {
     private fun setupViewSettings() {
         // Extend 버튼 클릭 리스너 설정
         findViewById<Button>(R.id.extendButton).setOnClickListener {
-            val file = File(cacheDir, "extendList.json")
-            val extendJsonUri = FileProvider.getUriForFile(this, "${applicationContext.packageName}.fileprovider", file)
-            saveToExtendJson(extendJsonUri)
             val intent = Intent(this, ExtendNoteViewActivity::class.java).apply {
-                putExtra("extendJsonUri", extendJsonUri.toString())
+                putExtra("jsonUri", jsonUri.toString())
                 putExtra("pdfUri", pdfUri.toString()) // TODO :: maybe cause error
                 putExtra("fileHash", fileHash)
+                putExtra("currentPdfPage", currentPosition)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             startActivity(intent)
@@ -182,8 +179,11 @@ class MainNoteViewActivity : AppCompatActivity() {
     }
 
     private fun processNoteList() {
+        mainListMap = mutableMapOf<Int, ListInfo>()
+        extendedListMap = mutableMapOf<Int, MutableMap<Int, ListInfo>>()
+
         // Start element 찾기
-        var startElement = notes.noteList.find { it.tag == 0 && it.prevIndex == -1 }
+        var startElement = notes.noteMap.values.find { it.tag == 0 && it.prevIndex == -1 }
 
         // Start element가 없는 경우 A4용지 크기의 배경과 투명 노트를 생성
         if (startElement == null) {
@@ -196,71 +196,50 @@ class MainNoteViewActivity : AppCompatActivity() {
             )
             notes.nextPage = 1
         }
-
         // mainList 초기화 및 요소 추가
-        mainList.add(startElement)
-        while (mainList.last().nextIndex != -1) {
-            val nextElement = notes.noteList[mainList.last().nextIndex]
-            nextElement.prevIndex = mainList.size - 1
-            mainList.last().nextIndex = mainList.size
-            mainList.add(nextElement)
+        mainListMap[startElement.unique] = startElement
+        var curElement = startElement
+        while (curElement?.nextIndex != -1) {
+            val nextElement = notes.noteMap[curElement?.nextIndex]
+            mainListMap[nextElement!!.unique] = nextElement
+            curElement = nextElement
         }
 
         // extendedList 초기화 및 요소 추가
-        mainList.forEachIndexed { i, element ->
+        mainListMap.values.forEachIndexed { i, element ->
             if (element.keyIndex != -1) {
-                var extendedStartElement = notes.noteList[element.keyIndex]
-                val tmpMutableList = mutableListOf(extendedStartElement)
-                while (tmpMutableList.last().nextIndex != -1) {
-                    val et = notes.noteList[tmpMutableList.last().nextIndex]
-                    et.prevIndex = tmpMutableList.size - 1
-                    tmpMutableList.last().nextIndex = tmpMutableList.size
-                    tmpMutableList.add(et)
+                var extendedElement = notes.noteMap[element.keyIndex]
+                val tmpMutableMap = mutableMapOf<Int, ListInfo>(extendedElement!!.unique to extendedElement)
+                while (extendedElement!!.nextIndex != -1) {
+                    val nextElement = notes.noteMap[extendedElement?.nextIndex]
+                    tmpMutableMap.put(nextElement!!.unique, nextElement)
+                    extendedElement = nextElement
                 }
-                extendedList[i] = tmpMutableList
+                extendedListMap[i] = tmpMutableMap
             }
         }
     }
 
     private fun saveToJson(uri: Uri) {
-        val modifiedNoteList = ArrayList<ListInfo>()
+        val modifiedNoteMap = mutableMapOf<Int, ListInfo>()
 
-        mainList.forEachIndexed { i, element ->
+        mainListMap.forEach { (i, element) ->
             element.keyIndex = -1
             element.tag = 0
-            modifiedNoteList.add(element)
+            modifiedNoteMap.put(i, element)
         }
-        extendedList.forEach { (key, list) ->
-            if(list.size != 0) {
-                modifiedNoteList[list[0].keyIndex].keyIndex = modifiedNoteList.size
-                list.forEachIndexed { i, element ->
-                    element.prevIndex = if(i != 0) modifiedNoteList.size - 1 else -1
-                    element.nextIndex = if(i != list.size - 1) modifiedNoteList.size + 1 else -1
+        extendedListMap.forEach { (key, map) ->
+            if(map.size != 0) {
+                map.forEach { (i, element) ->
+                    element.keyIndex = key
+                    if(element.prevIndex == -1) modifiedNoteMap[element.keyIndex]!!.keyIndex = i
                     element.tag = 1
-                    modifiedNoteList.add(element)
+                    modifiedNoteMap.put(i, element)
                 }
             }
         }
-        val modifiedNotes = Notes(notes.nextPage, modifiedNoteList)
+        val modifiedNotes = Notes(notes.nextPage, modifiedNoteMap)
         val json = gson.toJson(modifiedNotes).replace("\n", "")
-        contentResolver.openOutputStream(uri)?.use { outputStream ->
-            OutputStreamWriter(outputStream).use { writer ->
-                writer.write(json)
-            }
-        }
-    }
-
-    private fun saveToExtendJson(uri: Uri) {
-        val extendedNoteList = ArrayList<ListInfo>()
-        extendedList[currentPosition]?.forEachIndexed { i, element ->
-            val copyElement = element
-            copyElement.prevIndex = if(i != 0) extendedNoteList.size - 1 else -1
-            copyElement.nextIndex = if(i != extendedList[currentPosition]!!.size - 1) extendedNoteList.size + 1 else -1
-            extendedNoteList.add(copyElement)
-        }
-
-        val extendedNotes = Notes(extendedNoteList.size, extendedNoteList)
-        val json = gson.toJson(extendedNotes).replace("\n", "")
         contentResolver.openOutputStream(uri)?.use { outputStream ->
             OutputStreamWriter(outputStream).use { writer ->
                 writer.write(json)
@@ -284,14 +263,11 @@ class MainNoteViewActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        Log.d("&&&&onSaveInstanceState", "isEraseMode : $isEraseMode")
         outState.putBoolean("isEraseMode", isEraseMode)
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
         isEraseMode = savedInstanceState.getBoolean("isEraseMode")
-        Log.d("&&&&onRestoreInstanceState", "isEraseMode : $isEraseMode")
-        drawViewUpdate(currentPosition)
     }
 }
