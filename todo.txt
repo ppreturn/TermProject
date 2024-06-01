@@ -1,14 +1,2 @@
-todo list
-세로화면 가로화면 넘어갈 때 drawView의 내용이 사라지는 것 해결할 것.
-{
-	json파일의 background파일을 제거.
-	MainNoteViewActivity로 넘어갈 때 pdf파일의 uri도 같이 넘길것.
-	pdf파일의 화면과 noteView(drawView)를 겹쳐서 보이게 할 것.
-}
-*dummy button을 눌러 extendActivity로 넘어가게 만들것.
-*extendActivity로 넘어가기전 extendedList[pageNum]의 파일들을 json파일로 만들고, 그 json파일의 uri를 넘길 것.
-*extendedList[pageNum]이 존재하지 않으면 빈페이지 하나를 만들 것.
-*받은 uri로 extendedNoteViewActivity에서 extendedList (여기선 단순 배열리스트)로 json파일을 읽어옴.
-*DynamicPagerAdapter를 이용해 작업한다.
-*맨 오른쪽 페이지에서 오른쪽으로 스와이프 할 경우, extendedList에 빈 페이지를 추가하고 만듦.
-*종료 시에 extendedList를 json에 다시 저장하고 이전 MainNoteViewActivity로 넘어가여 json파일을 불러와서 extendedList[pageNum]을 갱신함.
+펜 종류 선택. 지우개 두께 선택.
+UI design
