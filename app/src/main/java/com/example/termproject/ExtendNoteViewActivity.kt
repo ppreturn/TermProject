@@ -106,7 +106,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
                         val unique = getExtendUniqueFromCurrentPosition()
                         Util.saveImage(bitmap, saveDir, "${unique}.png")
                     }
-                    saveToJson(jsonUri!!)
                 }
             }
         }

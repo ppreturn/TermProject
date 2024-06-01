@@ -142,6 +142,9 @@ class MainActivity : AppCompatActivity() {
         val fileHash = calculateFileHash(openedUri!!)
         val fileName = "$fileHash.json"
         val file = File(getExternalFilesDir(null), fileName)
+
+        Log.d("json file open", "File saved successfully: ${file.absolutePath}")
+
         if (!file.exists()) {
             Log.e("MainActivity", "File not found: ${file.absolutePath}")
             return

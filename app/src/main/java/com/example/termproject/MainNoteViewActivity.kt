@@ -26,6 +26,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 class MainNoteViewActivity : AppCompatActivity() {
+    private val OPEN_EXTEND_NOTE_VIEW_REQUEST_CODE = 1
 
     private lateinit var fileDescriptor: ParcelFileDescriptor
 
@@ -82,8 +83,15 @@ class MainNoteViewActivity : AppCompatActivity() {
 
             startUpdateJob()
         }
-
         setupViewSettings()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode == OPEN_EXTEND_NOTE_VIEW_REQUEST_CODE && resultCode == RESULT_OK) {
+            loadNoteListFromFile(jsonUri!!)
+            processNoteList()
+        }
     }
 
     private fun startUpdateJob() { // 폴더에 비트맵 저장 (Ext/HashFolder/0.png, 1.png, ...)
@@ -111,7 +119,7 @@ class MainNoteViewActivity : AppCompatActivity() {
                 putExtra("currentPdfPage", currentPosition)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(intent)
+            startActivityForResult(intent, OPEN_EXTEND_NOTE_VIEW_REQUEST_CODE)
         }
 
         findViewById<Button>(R.id.saveButton).setOnClickListener {
@@ -145,6 +153,9 @@ class MainNoteViewActivity : AppCompatActivity() {
     }
     override fun onResume() {
         super.onResume()
+
+        loadNoteListFromFile(jsonUri!!)
+        processNoteList()
         startUpdateJob()
     }
 
@@ -220,6 +231,7 @@ class MainNoteViewActivity : AppCompatActivity() {
 
     private fun saveToJson(uri: Uri) {
         val modifiedNoteMap = mutableMapOf<Int, ListInfo>()
+
 
         mainListMap.forEach { (i, element) ->
             element.keyIndex = -1
