@@ -19,7 +19,6 @@ import java.io.File
 
 class ExtendNotePagerAdapter(private val context: Context,
                              private val listener: onExtendButtonClickListener?,
-                             public var isEraseMode: Boolean,
                              private var nextPage: Int,
                              private val parentKeyIndex: Int,
                              private val pdfRenderer: PdfRenderer,
@@ -66,8 +65,8 @@ class ExtendNotePagerAdapter(private val context: Context,
 
             noteDrawView.setBitmap(convertedNoteBitmap)
 
-            if(isEraseMode) noteDrawView.setEraseMode()
-            else noteDrawView.setPaintProperties(Color.BLACK, 5f)
+            if(Paints.getEraseMode()) noteDrawView.setEraseMode()
+            else noteDrawView.setDrawMode()
 
         } else {
             val addPortraitButton = view.findViewById<Button>(R.id.addPortraitBtn)

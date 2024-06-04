@@ -6,8 +6,11 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.viewpager.widget.ViewPager
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -24,7 +27,7 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 
-class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener {
+class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener, FragmentInteractionListener {
     private lateinit var fileDescriptor: ParcelFileDescriptor
 
     private lateinit var notes : Notes
@@ -38,8 +41,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
     private var pdfUri: Uri? = null
     private var fileHash: String? = null
     private var currentPdfPage: Int = 0
-
-    private var isEraseMode = false
 
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +67,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
             adapter = ExtendNotePagerAdapter(
                 this,
                 this,
-                isEraseMode,
                 notes.nextPage,
                 unique,
                 openPdfRenderer(pdfUri!!),
@@ -89,8 +89,15 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
 
             startUpdateJob()
         }
-
         setupViewSettings()
+    }
+
+    override fun removeFragment(containerId: Int) {
+        val fragment = supportFragmentManager.findFragmentById(containerId)
+        if (fragment != null) {
+            supportFragmentManager.beginTransaction().remove(fragment).commit()
+            findViewById<View>(containerId).visibility = View.GONE
+        }
     }
 
     private fun startUpdateJob() { // 폴더에 비트맵 저장 (Ext/HashFolder/0.png, 1.png, ...)
@@ -98,7 +105,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
         updateJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 if(currentPosition < (extendedListMap[currentPdfPage]?.size ?: 0)) {
-                    delay(200)
                     val noteDrawView = adapter.getDrawViewAt(currentPosition)
                     noteDrawView?.let {
                         val bitmap = it.getBitmap()
@@ -106,6 +112,7 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
                         val unique = getExtendUniqueFromCurrentPosition()
                         Util.saveImage(bitmap, saveDir, "${unique}.png")
                     }
+                    delay(200)
                 }
             }
         }
@@ -160,7 +167,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
             val newAdapter = ExtendNotePagerAdapter(
                 this,
                 this,
-                isEraseMode,
                 notes.nextPage,
                 unique,
                 openPdfRenderer(pdfUri!!),
@@ -174,39 +180,74 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
 
         }
 
-        findViewById<Button>(R.id.saveButton).setOnClickListener {
-            jsonUri?.let { uri ->
-                saveToJson(uri)
-            }
-        }
-
         findViewById<Button>(R.id.drawButton).setOnClickListener {
-            isEraseMode = false
-            adapter.isEraseMode = false
+            Paints.setEraseMode(false)
             val drawView = adapter.getDrawViewAt(currentPosition)
-            drawView?.setPaintProperties(Color.BLACK, 5f)
+            drawView?.setDrawMode()
+            showDrawSettingsFragment()
         }
 
         findViewById<Button>(R.id.eraseButton).setOnClickListener {
-            isEraseMode = true
-            adapter.isEraseMode = true
+            Paints.setEraseMode(true)
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setEraseMode()
+            showEraseSettingsFragment()
         }
+    }
+
+    private fun showDrawSettingsFragment() {
+        val fragment = DrawSettingsFragment()
+        fragment.onSettingsChangeListener = { strokeWidth, strokeColor ->
+            Paints.setDrawPaint(strokeColor, strokeWidth)
+        }
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
+        findViewById<View>(R.id.fragmentContainer).visibility = View.VISIBLE
+    }
+
+    private fun showEraseSettingsFragment() {
+        val fragment = EraseSettingsFragment()
+        fragment.onSettingsChangeListener = { eraserWidth ->
+            Paints.setErasePaint(eraserWidth)
+        }
+        supportFragmentManager.beginTransaction()
+            .replace(R.id.fragmentContainer, fragment)
+            .commit()
+        findViewById<View>(R.id.fragmentContainer).visibility = View.VISIBLE
+    }
+
+    private fun adjustFragmentContainerConstraints(drawButtonId: Int) {
+        val constraintLayout = findViewById<ConstraintLayout>(R.id.extendNoteViewLayout)
+        val constraintSet = ConstraintSet()
+        constraintSet.clone(constraintLayout)
+
+        constraintSet.clear(R.id.fragmentContainer, ConstraintSet.BOTTOM)
+        constraintSet.clear(R.id.fragmentContainer, ConstraintSet.TOP)
+        constraintSet.clear(R.id.fragmentContainer, ConstraintSet.START)
+        constraintSet.clear(R.id.fragmentContainer, ConstraintSet.END)
+
+        constraintSet.connect(R.id.fragmentContainer, ConstraintSet.BOTTOM, drawButtonId, ConstraintSet.TOP)
+        constraintSet.connect(R.id.fragmentContainer, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
+        constraintSet.connect(R.id.fragmentContainer, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
+
+        constraintSet.applyTo(constraintLayout)
     }
 
     private fun drawViewUpdate(position: Int) {
         val drawView = adapter.getDrawViewAt(position)
-        if (isEraseMode) {
+        if (Paints.getEraseMode()) {
             drawView?.setEraseMode()
         } else {
-            drawView?.setPaintProperties(Color.BLACK, 5f)
+            drawView?.setDrawMode()
         }
     }
 
     override fun onResume() {
         super.onResume()
         startUpdateJob()
+
+        removeFragment(R.id.fragmentContainer)
     }
 
     override fun onPause() {
@@ -317,16 +358,6 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener 
         }
         fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         return PdfRenderer(fileDescriptor)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putBoolean("isEraseMode", isEraseMode)
-    }
-
-    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        super.onRestoreInstanceState(savedInstanceState)
-        isEraseMode = savedInstanceState.getBoolean("isEraseMode")
     }
 
     override fun modifyNotesAndSaveJsonFile(
