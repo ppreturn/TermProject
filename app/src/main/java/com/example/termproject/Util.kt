@@ -1,5 +1,6 @@
 package com.example.termproject
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import java.io.File
@@ -38,9 +39,9 @@ object Util {
             }
         }
     }
-    fun createA4WhiteBitmap(direction: Int, dpi: Int = 300): Bitmap {
-        val width = (210 * dpi / 25.4).toInt()
-        val height = (297 * dpi / 25.4).toInt()
+    fun createA4WhiteBitmap(context: Context, direction: Int, dpi: Int = 300): Bitmap {
+        var width = (210 * dpi / 25.4).toInt()
+        var height = (297 * dpi / 25.4).toInt()
 
         val bitmap = if(direction == 2) {
             Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)

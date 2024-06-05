@@ -21,7 +21,7 @@ class ExtendNotePagerAdapter(private val context: Context,
                              private val listener: onExtendButtonClickListener?,
                              private var nextPage: Int,
                              private val parentKeyIndex: Int,
-                             private val pdfRenderer: PdfRenderer,
+                             private val pdfPage: PdfRenderer.Page,
                              private val fileHash: String,
                              public val extendNoteMap: MutableMap<Int, ListInfo>,
                              private val viewPager: ViewPager
@@ -50,7 +50,7 @@ class ExtendNotePagerAdapter(private val context: Context,
 
             val unique = getUniqueFromCurrentPosition(position)
             val noteData = extendNoteMap[unique]
-            val tmpBackgroundBitmap = Util.createA4WhiteBitmap(noteData!!.tag)
+            val tmpBackgroundBitmap = createPdfSizeWhiteBitmap(noteData!!.tag)
 
             val backgroundBitmap = tmpBackgroundBitmap.copy(Bitmap.Config.ARGB_8888, true)
             backgroundImageView.setImageBitmap(backgroundBitmap)
@@ -90,6 +90,37 @@ class ExtendNotePagerAdapter(private val context: Context,
         return view
     }
 
+
+    private fun getScaleFactor(pdfPage: PdfRenderer.Page, context: Context): Float{
+        var portraitScaleFactor : Float = 0f
+        var landscapeScaleFactor : Float = 0f
+        var screenWidth : Int = 0
+        var screenHeight : Int = 0
+
+        val displayMetrics = context.resources.displayMetrics
+        screenWidth = displayMetrics.widthPixels
+        screenHeight = displayMetrics.heightPixels
+
+        portraitScaleFactor = minOf(screenWidth/pdfPage.width.toFloat(), screenHeight/pdfPage.height.toFloat())
+        landscapeScaleFactor = minOf(screenWidth/pdfPage.height.toFloat(), screenHeight/pdfPage.width.toFloat())
+        return maxOf(portraitScaleFactor, landscapeScaleFactor)
+    }
+
+    private fun createPdfSizeWhiteBitmap(direction: Int): Bitmap {
+        var scaleFactor : Float = 0f
+        scaleFactor = getScaleFactor(pdfPage, context)
+        val width = (pdfPage.width * scaleFactor).toInt()
+        val height = (pdfPage.height * scaleFactor).toInt()
+
+        val bitmap = if(direction == 2) {
+            Bitmap.createBitmap(height, width, Bitmap.Config.ARGB_8888)
+        } else {
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        }
+        bitmap.eraseColor(Color.WHITE)
+
+        return bitmap
+    }
 
     private fun createDefaultBitmap(width:Int, height:Int, context: Context): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
