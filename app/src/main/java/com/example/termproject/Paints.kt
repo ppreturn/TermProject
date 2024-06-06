@@ -14,6 +14,7 @@ class Paints : Application() {
         xfermode = null
         isAntiAlias = true
         strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
     }
 
     private var erasePaint: Paint = Paint().apply {
@@ -23,6 +24,7 @@ class Paints : Application() {
         xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
         isAntiAlias = true
         strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
     }
 
     private var eraseMode: Boolean = false

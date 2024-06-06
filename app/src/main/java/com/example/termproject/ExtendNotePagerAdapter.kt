@@ -65,6 +65,9 @@ class ExtendNotePagerAdapter(private val context: Context,
 
             noteDrawView.setBitmap(convertedNoteBitmap)
 
+            Log.d("background bitmap", "width: ${backgroundBitmap.width}, height: ${backgroundBitmap.height}")
+            Log.d("converted bitmap", "width: ${convertedNoteBitmap.width}, height: ${convertedNoteBitmap.height}")
+
             if(Paints.getEraseMode()) noteDrawView.setEraseMode()
             else noteDrawView.setDrawMode()
 

@@ -25,6 +25,11 @@ class ColorAdapter(
         notifyItemChanged(newPos)
     }
 
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        for (i in colors.indices) if(Paints.getDrawPaint().color == colors[i]) selectedPosition = i
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ColorViewHolder {
         val view = LayoutInflater.from(context).inflate(R.layout.color_item, parent, false)
         return ColorViewHolder(view)
@@ -49,7 +54,7 @@ class ColorAdapter(
                     val color = colors[selectedPosition]
                     listener.onColorClick(color)
                 } else {
-                    selectedPosition = -1
+                    // do nothing.
                 }
             }
         }
