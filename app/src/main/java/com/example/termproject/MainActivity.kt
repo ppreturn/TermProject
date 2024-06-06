@@ -1,9 +1,13 @@
 package com.example.termproject
 
+import android.Manifest.permission
+
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -15,8 +19,13 @@ import android.util.Log
 import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -30,32 +39,109 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), MyAdapter.OnItemClickListener {
     private val OPEN_FILE_REQUEST_CODE = 1
     private var notes: Notes? = null
     private var openedUri : Uri? = null
 
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
 
+    val tableName = "files"
+    var fileList:MutableList<Pair<String,String>> = mutableListOf()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val database: SQLiteDatabase?=openOrCreateDatabase("pdffile", MODE_PRIVATE,null)
+        if (database!=null)
+        {
+            database?.execSQL("create table if not exists ${tableName}"+
+                    "( id integer PRIMARY KEY autoincrement, "+
+                    "filename text, "+
+                    "uri text, " +
+                    "rodate datetime) ")
+        }
+
+        val cursor=database?.rawQuery("select filename,uri,rodate "+
+                "from ${tableName} "+
+                "order by rodate desc",null)
+        for(index in 0 until cursor!!.count) {
+            cursor.moveToNext()
+            val fileName = cursor.getString(0)
+            val fileUri = cursor.getString(1)
+            fileList.add(Pair(fileName, fileUri))
+        }
+
+        val recentopenedRv: RecyclerView = findViewById(R.id.recentOpenedRv)
+
+        recentopenedRv.layoutManager= LinearLayoutManager(this)
+        recentopenedRv.adapter = MyAdapter(fileList, this)
+        recentopenedRv.addItemDecoration(
+            DividerItemDecoration(
+                this, LinearLayoutManager.VERTICAL
+            )
+        )
+
         val openFileButton: Button = findViewById(R.id.openFileButton)
 
         openFileButton.setOnClickListener {
-            val intent = Intent(Intent.ACTION_GET_CONTENT)
-            intent.type = "application/pdf"
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "application/pdf"
+                // Persistable 권한 요청을 위한 플래그 설정
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }
             startActivityForResult(intent, OPEN_FILE_REQUEST_CODE)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val recentopenedRv: RecyclerView =findViewById(R.id.recentOpenedRv)
+        val database:SQLiteDatabase?=openOrCreateDatabase("pdffile", MODE_PRIVATE,null)
+        fileList.clear()
+        val cursor=database?.rawQuery("select filename,uri "+
+                "from files "+
+                "order by rodate desc",null)
+        for(index in 0 until cursor!!.count) {
+            cursor.moveToNext()
+            val fileName = cursor.getString(0)
+            val fileUri = cursor.getString(1)
+            fileList.add(Pair(fileName, fileUri))
+        }
+
+        recentopenedRv.layoutManager= LinearLayoutManager(this)
+        recentopenedRv.adapter = MyAdapter(fileList, this)
+        recentopenedRv.addItemDecoration(
+            DividerItemDecoration(
+                this, LinearLayoutManager.VERTICAL
+            )
+        )
     }
 
 
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        val database: SQLiteDatabase? = openOrCreateDatabase("pdffile", MODE_PRIVATE,null)
         if (requestCode == OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             openedUri = data?.data
+            contentResolver.takePersistableUriPermission(openedUri!!, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val cursor: Cursor? = openedUri?.let { contentResolver.query(it,null,null,null,null) }
+            val nameIndex = cursor?.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            cursor?.moveToFirst()
+            var fileName = nameIndex?.let { cursor?.getString(it) }
+            if(Pair(fileName, openedUri.toString()) in fileList){
+                database?.rawQuery("update files SET rodate=(select datetime('now','localtime')) where uri='${openedUri}'",null)
+            }
+            else{
+                database?.execSQL("insert into files(filename,uri,rodate) values"+
+                        "('${fileName}','${openedUri}',(select datetime('now','localtime')))")
+                fileList.add(Pair(fileName.toString(), openedUri.toString()))
+            }
             openedUri?.let {
                 notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
                 handlePdfFile(it)
@@ -85,6 +171,7 @@ class MainActivity : AppCompatActivity() {
         // 해시값을 16진수 문자열로 변환하여 반환
         return hashBytes.joinToString("") { "%02x".format(it) }
     }
+
     private fun handlePdfFile(uri: Uri) {
         val fileHash = calculateFileHash(uri)
         if(File(getExternalFilesDir(null), "$fileHash.json").exists()) {
@@ -170,5 +257,13 @@ class MainActivity : AppCompatActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(intent)
+    }
+
+    override fun onItemClick(data: Pair<String,String>) {
+        openedUri = data.second.toUri()
+        notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
+        handlePdfFile(openedUri!!)
+        saveJson()
+        openNoteViewActivity()
     }
 }

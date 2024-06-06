@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -87,6 +88,9 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
             startUpdateJob()
         }
         setupViewSettings()
+
+        if(Paints.getEraseMode()) findViewById<Button>(R.id.eraseButton).setPressed(true)
+        else findViewById<Button>(R.id.drawButton).setPressed(true)
     }
 
     override fun removeFragment(containerId: Int) {
@@ -134,17 +138,21 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
         }
 
         findViewById<Button>(R.id.drawButton).setOnClickListener {
+            if(!Paints.getEraseMode()) {
+                showDrawSettingsFragment()
+            }
             Paints.setEraseMode(false)
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setDrawMode()
-            showDrawSettingsFragment()
         }
 
         findViewById<Button>(R.id.eraseButton).setOnClickListener {
+            if(Paints.getEraseMode()) {
+                showEraseSettingsFragment()
+            }
             Paints.setEraseMode(true)
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setEraseMode()
-            showEraseSettingsFragment()
         }
     }
 
