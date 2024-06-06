@@ -157,16 +157,9 @@ class MainActivity : AppCompatActivity(), MyAdapter.OnItemClickListener {
         val buffer = inputStream?.readBytes()
         inputStream?.close()
 
-        // 파일이 추가된 날짜를 문자열로 변환 (여기서는 현재 시간을 사용)
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        val dateAdded = dateFormat.format(Date())
-
-        // 해시를 계산할 데이터 결합
-        val dataToHash = buffer?.plus(dateAdded.toByteArray())
-
         // 해시 계산
         val md = MessageDigest.getInstance("MD5")
-        val hashBytes = md.digest(dataToHash)
+        val hashBytes = md.digest(buffer!!)
 
         // 해시값을 16진수 문자열로 변환하여 반환
         return hashBytes.joinToString("") { "%02x".format(it) }
