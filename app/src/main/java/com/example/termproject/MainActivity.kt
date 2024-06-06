@@ -26,6 +26,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private val OPEN_FILE_REQUEST_CODE = 1
@@ -39,8 +42,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val openFileButton: Button = findViewById(R.id.openFileButton)
-
-        notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
 
         openFileButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
@@ -56,22 +57,32 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             openedUri = data?.data
             openedUri?.let {
+                notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
                 handlePdfFile(it)
                 saveJson()
                 openNoteViewActivity()
-                notes = null
             }
         }
     }
 
     private fun calculateFileHash(uri: Uri): String {
+        // 파일의 내용을 읽기
         val inputStream = contentResolver.openInputStream(uri)
         val buffer = inputStream?.readBytes()
         inputStream?.close()
 
-        val md = MessageDigest.getInstance("MD5")
-        val hashBytes = md.digest(buffer)
+        // 파일이 추가된 날짜를 문자열로 변환 (여기서는 현재 시간을 사용)
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val dateAdded = dateFormat.format(Date())
 
+        // 해시를 계산할 데이터 결합
+        val dataToHash = buffer?.plus(dateAdded.toByteArray())
+
+        // 해시 계산
+        val md = MessageDigest.getInstance("MD5")
+        val hashBytes = md.digest(dataToHash)
+
+        // 해시값을 16진수 문자열로 변환하여 반환
         return hashBytes.joinToString("") { "%02x".format(it) }
     }
     private fun handlePdfFile(uri: Uri) {
@@ -85,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         contentResolver.openFileDescriptor(uri, "r")?.use { parcelFileDescriptor ->
             val pdfRenderer = PdfRenderer(parcelFileDescriptor)
             val pageCount = pdfRenderer.pageCount
+
             notes?.nextPage = pageCount
             for (i in 0 until pageCount) {
                 val jsonData = ListInfo(

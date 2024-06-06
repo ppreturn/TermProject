@@ -176,6 +176,7 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
             )
             adapter = newAdapter
             viewPager.adapter = adapter
+            viewPager.setCurrentItem(currentPosition, true)
             // adapter.notifyDataSetChanged()
 
         }
