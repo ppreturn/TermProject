@@ -88,9 +88,6 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
             startUpdateJob()
         }
         setupViewSettings()
-
-        if(Paints.getEraseMode()) findViewById<Button>(R.id.eraseButton).setPressed(true)
-        else findViewById<Button>(R.id.drawButton).setPressed(true)
     }
 
     override fun removeFragment(containerId: Int) {
