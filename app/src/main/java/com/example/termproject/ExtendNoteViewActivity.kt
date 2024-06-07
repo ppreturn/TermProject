@@ -90,6 +90,8 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
             startUpdateJob()
         }
         setupViewSettings()
+
+        pressedStateUpdate()
     }
 
     override fun removeFragment(containerId: Int) {
@@ -182,17 +184,37 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
         }
 
         findViewById<Button>(R.id.drawButton).setOnClickListener {
+            if(!Paints.getEraseMode()) {
+                showDrawSettingsFragment()
+            } else {
+                removeFragment(R.id.fragmentContainer)
+            }
             Paints.setEraseMode(false)
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setDrawMode()
-            showDrawSettingsFragment()
+            pressedStateUpdate()
         }
 
         findViewById<Button>(R.id.eraseButton).setOnClickListener {
+            if(Paints.getEraseMode()) {
+                showEraseSettingsFragment()
+            } else {
+                removeFragment(R.id.fragmentContainer)
+            }
             Paints.setEraseMode(true)
             val drawView = adapter.getDrawViewAt(currentPosition)
             drawView?.setEraseMode()
-            showEraseSettingsFragment()
+            pressedStateUpdate()
+        }
+    }
+
+    private fun pressedStateUpdate() {
+        if(Paints.getEraseMode()) {
+            findViewById<Button>(R.id.eraseButton).setSelected(true)
+            findViewById<Button>(R.id.drawButton).setSelected(false)
+        } else {
+            findViewById<Button>(R.id.drawButton).setSelected(true)
+            findViewById<Button>(R.id.eraseButton).setSelected(false);
         }
     }
 

@@ -40,7 +40,6 @@ class EraseSettingsFragment : Fragment() {
         eraserWidthTextView.text = eraserWidth.toInt().toString()
 
         seekBar.progress = eraserWidth.toInt()  // Set the initial progress
-
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 eraserWidth = progress.toFloat()  // Save the eraser width

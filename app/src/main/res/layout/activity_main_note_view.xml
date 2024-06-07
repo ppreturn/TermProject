@@ -44,6 +44,8 @@
         android:layout_height="wrap_content"
         android:text="Draw"
 
+        android:background="@drawable/selector_button"
+
         app:layout_constraintHorizontal_chainStyle="packed"
 
         app:layout_constraintBottom_toBottomOf="parent"
@@ -58,6 +60,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Erase"
+
+        android:background="@drawable/selector_button"
 
         app:layout_constraintHorizontal_chainStyle="packed"
 
