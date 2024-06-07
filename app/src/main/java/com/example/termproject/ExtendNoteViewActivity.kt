@@ -8,9 +8,11 @@ import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
+import androidx.fragment.app.Fragment
 import androidx.viewpager.widget.ViewPager
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -284,6 +286,20 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
             saveToJson(it)
         }
     }
+
+    override fun onBackPressed() {
+        if(isFragmentInContainer(R.id.fragmentContainer)) {
+            removeFragment(R.id.fragmentContainer)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    private fun isFragmentInContainer(containerId: Int): Boolean {
+        val fragment: Fragment? = supportFragmentManager.findFragmentById(containerId)
+        return fragment != null
+    }
+
 
     private fun loadNoteListFromFile(uri: Uri) {
         contentResolver.openInputStream(uri)?.use { inputStream ->

@@ -17,8 +17,8 @@ data class Notes(
     val noteMap: MutableMap<Int, ListInfo>
 )
 object Util {
-    const val a4Width = 2480 // A4 용지 너비 (픽셀, 300dpi 기준)
-    const val a4Height = 3508 // A4 용지 높이 (픽셀, 300dpi 기준)
+    const val a4Width = 210 // A4 용지 너비 (픽셀, 300dpi 기준)
+    const val a4Height = 297 // A4 용지 높이 (픽셀, 300dpi 기준)
 
     fun saveImage(bitmap: Bitmap, fileDir: File, fileName: String) {
         if (!fileDir.exists()) {
@@ -39,17 +39,4 @@ object Util {
             }
         }
     }
-    fun createA4WhiteBitmap(context: Context, direction: Int, dpi: Int = 300): Bitmap {
-        var width = (210 * dpi / 25.4).toInt()
-        var height = (297 * dpi / 25.4).toInt()
-
-        val bitmap = if(direction == 2) {
-            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        } else {
-            Bitmap.createBitmap(height, width, Bitmap.Config.ARGB_8888)
-        }
-        bitmap.eraseColor(Color.WHITE)
-        return bitmap
-    }
-
 }
