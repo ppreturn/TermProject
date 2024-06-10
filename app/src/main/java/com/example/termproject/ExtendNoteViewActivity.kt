@@ -131,7 +131,7 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
     private fun getExtendUniqueFromCurrentPosition() :Int {
         var cur = extendedListMap[currentPdfPage]!!.values.find { it.prevIndex == -1 } // notes.noteMap[notes.noteMap[currentPdfPage]!!.keyIndex]
         var cnt = 0
-        while(cnt < currentPosition) {
+        while(cnt < currentPosition && notes.noteMap[cur!!.nextIndex] != null) {
             cur = notes.noteMap[cur!!.nextIndex]
             cnt += 1
         }

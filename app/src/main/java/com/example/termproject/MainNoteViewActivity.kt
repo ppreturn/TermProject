@@ -120,7 +120,7 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
         findViewById<Button>(R.id.extendButton).setOnClickListener {
             val intent = Intent(this, ExtendNoteViewActivity::class.java).apply {
                 putExtra("jsonUri", jsonUri.toString())
-                putExtra("pdfUri", pdfUri.toString()) // TODO :: maybe cause error
+                putExtra("pdfUri", pdfUri.toString())
                 putExtra("fileHash", fileHash)
                 putExtra("currentPdfPage", currentPosition)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -254,7 +254,6 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
     private fun processNoteList() {
         mainListMap = mutableMapOf<Int, ListInfo>()
         extendedListMap = mutableMapOf<Int, MutableMap<Int, ListInfo>>()
-
         // Start element 찾기
         var startElement = notes.noteMap.values.find { it.tag == 0 && it.prevIndex == -1 }
 
