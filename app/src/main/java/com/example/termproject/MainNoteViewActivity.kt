@@ -130,6 +130,7 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
 
         findViewById<Button>(R.id.drawButton).setOnClickListener {
             if(!Paints.getEraseMode()) {
+                // adjustFragmentContainerConstraints(R.id.drawButton)
                 showDrawSettingsFragment()
             } else {
                 removeFragment(R.id.fragmentContainer)
@@ -142,6 +143,7 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
 
         findViewById<Button>(R.id.eraseButton).setOnClickListener {
             if(Paints.getEraseMode()) {
+                // adjustFragmentContainerConstraints(R.id.eraseButton)
                 showEraseSettingsFragment()
             } else {
                 removeFragment(R.id.fragmentContainer)
@@ -175,17 +177,17 @@ class MainNoteViewActivity : AppCompatActivity(), FragmentInteractionListener {
         findViewById<View>(R.id.fragmentContainer).visibility = View.VISIBLE
     }
 
-    private fun adjustFragmentContainerConstraints(drawButtonId: Int) {
+    private fun adjustFragmentContainerConstraints(buttonId: Int) {
         val constraintLayout = findViewById<ConstraintLayout>(R.id.mainNoteViewLayout)
         val constraintSet = ConstraintSet()
         constraintSet.clone(constraintLayout)
 
         constraintSet.clear(R.id.fragmentContainer, ConstraintSet.BOTTOM)
-        constraintSet.clear(R.id.fragmentContainer, ConstraintSet.TOP)
+        // constraintSet.clear(R.id.fragmentContainer, ConstraintSet.TOP)
         constraintSet.clear(R.id.fragmentContainer, ConstraintSet.START)
         constraintSet.clear(R.id.fragmentContainer, ConstraintSet.END)
 
-        constraintSet.connect(R.id.fragmentContainer, ConstraintSet.BOTTOM, drawButtonId, ConstraintSet.TOP)
+        constraintSet.connect(R.id.fragmentContainer, ConstraintSet.BOTTOM, buttonId, ConstraintSet.TOP)
         constraintSet.connect(R.id.fragmentContainer, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
         constraintSet.connect(R.id.fragmentContainer, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
 
