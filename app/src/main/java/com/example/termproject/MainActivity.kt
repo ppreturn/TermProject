@@ -103,17 +103,18 @@ class MainActivity : AppCompatActivity(), MyAdapter.OnItemClickListener {
         val recentopenedRv: RecyclerView =findViewById(R.id.recentOpenedRv)
         val database:SQLiteDatabase?=openOrCreateDatabase("pdffile", MODE_PRIVATE,null)
         fileList.clear()
-        val cursor=database?.rawQuery("select filename,uri "+
+        val cursor=database?.rawQuery("select filename,uri,rodate "+
                 "from files "+
                 "order by rodate desc",null)
         for(index in 0 until cursor!!.count) {
             cursor.moveToNext()
             val fileName = cursor.getString(0)
             val fileUri = cursor.getString(1)
+            Log.e("date", "${index} ${cursor.getString(2)}")
             fileList.add(Pair(fileName, fileUri))
         }
 
-        recentopenedRv.layoutManager= LinearLayoutManager(this)
+        recentopenedRv.layoutManager = LinearLayoutManager(this)
         recentopenedRv.adapter = MyAdapter(fileList, this)
         recentopenedRv.addItemDecoration(
             DividerItemDecoration(
@@ -126,28 +127,32 @@ class MainActivity : AppCompatActivity(), MyAdapter.OnItemClickListener {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        val database: SQLiteDatabase? = openOrCreateDatabase("pdffile", MODE_PRIVATE,null)
         if (requestCode == OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
             openedUri = data?.data
             contentResolver.takePersistableUriPermission(openedUri!!, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            val cursor: Cursor? = openedUri?.let { contentResolver.query(it,null,null,null,null) }
-            val nameIndex = cursor?.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            cursor?.moveToFirst()
-            var fileName = nameIndex?.let { cursor?.getString(it) }
-            if(Pair(fileName, openedUri.toString()) in fileList){
-                database?.rawQuery("update files SET rodate=(select datetime('now','localtime')) where uri='${openedUri}'",null)
-            }
-            else{
-                database?.execSQL("insert into files(filename,uri,rodate) values"+
-                        "('${fileName}','${openedUri}',(select datetime('now','localtime')))")
-                fileList.add(Pair(fileName.toString(), openedUri.toString()))
-            }
+            updateDatabaseItem(openedUri)
             openedUri?.let {
                 notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
                 handlePdfFile(it)
                 saveJson()
                 openNoteViewActivity()
             }
+        }
+    }
+
+    private fun updateDatabaseItem(uri: Uri?) {
+        val database: SQLiteDatabase? = openOrCreateDatabase("pdffile", MODE_PRIVATE,null)
+        val cursor: Cursor? = uri?.let { contentResolver.query(it,null,null,null,null) }
+        val nameIndex = cursor?.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        cursor?.moveToFirst()
+        var fileName = nameIndex?.let { cursor?.getString(it) }
+        if(Pair(fileName, uri.toString()) in fileList){
+            database?.execSQL("update files SET rodate=(select datetime('now','localtime')) where uri='$uri'")
+        }
+        else{
+            database?.execSQL("insert into files(filename,uri,rodate) values"+
+                    "('${fileName}','${uri}',(select datetime('now','localtime')))")
+            fileList.add(Pair(fileName.toString(), uri.toString()))
         }
     }
 
@@ -254,6 +259,7 @@ class MainActivity : AppCompatActivity(), MyAdapter.OnItemClickListener {
 
     override fun onItemClick(data: Pair<String,String>) {
         openedUri = data.second.toUri()
+        updateDatabaseItem(openedUri)
         notes = Notes(0, emptyMap<Int, ListInfo>().toMutableMap())
         handlePdfFile(openedUri!!)
         saveJson()
