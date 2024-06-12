@@ -72,7 +72,7 @@ class DrawView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 } else if(visibleCanvasBitmap!!.width != contentRect.width().toInt() || visibleCanvasBitmap!!.height != contentRect.height().toInt()) {
                     val newWidth = contentRect.width().toInt()
                     val newHeight = contentRect.height().toInt()
-
+                    if(newWidth == 0 || newHeight == 0) return@let
                     visibleCanvasBitmap = Bitmap.createScaledBitmap(visibleCanvasBitmap!!, newWidth, newHeight, true)
                     visibleDrawCanvas = Canvas(visibleCanvasBitmap!!)
                 }

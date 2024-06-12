@@ -28,6 +28,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener, FragmentInteractionListener {
     private lateinit var fileDescriptor: ParcelFileDescriptor
@@ -43,6 +44,8 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
     private var pdfUri: Uri? = null
     private var fileHash: String? = null
     private var currentPdfPage: Int = 0
+
+    private var coroutinePauseFlag = AtomicBoolean(false)
 
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,6 +112,9 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
         updateJob = CoroutineScope(Dispatchers.Default).launch {
             while (isActive) {
                 if(currentPosition < (extendedListMap[currentPdfPage]?.size ?: 0)) {
+                    while(coroutinePauseFlag.get()) {
+                        delay(100)
+                    }
                     val noteDrawView = adapter.getDrawViewAt(currentPosition)
                     noteDrawView?.let {
                         val bitmap = it.getBitmap()
@@ -144,11 +150,12 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
             if(currentPosition == (extendedListMap[currentPdfPage]?.size ?: 0)) {
                 return@setOnClickListener
             }
+            coroutinePauseFlag.set(true)
             val unique = getExtendUniqueFromCurrentPosition()
             val deleteElement = notes.noteMap[unique]
 
-            if(deleteElement!!.prevIndex == -1 && deleteElement.nextIndex == -1) {
-                notes.noteMap[deleteElement.keyIndex]!!.keyIndex = -1
+            if(deleteElement!!.prevIndex == -1) {
+                notes.noteMap[deleteElement.keyIndex]!!.keyIndex = deleteElement.nextIndex
             }
             if(deleteElement!!.prevIndex != -1) {
                 notes.noteMap[deleteElement.prevIndex]!!.nextIndex = deleteElement.nextIndex
@@ -178,11 +185,13 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
                 extendedListMap[currentPdfPage] ?: emptyMap<Int, ListInfo>().toMutableMap(),
                 viewPager
             )
+
             adapter = newAdapter
             viewPager.adapter = adapter
             viewPager.setCurrentItem(currentPosition, true)
-            // adapter.notifyDataSetChanged()
-
+            adapter.notifyDataSetChanged()
+            (viewPager.adapter as ExtendNotePagerAdapter).notifyDataSetChanged()
+            coroutinePauseFlag.set(false)
         }
 
         findViewById<Button>(R.id.drawButton).setOnClickListener {
@@ -325,19 +334,8 @@ class ExtendNoteViewActivity : AppCompatActivity(), onExtendButtonClickListener,
         // Start element 찾기
         var startElement = notes.noteMap.values.find { it.tag == 0 && it.prevIndex == -1 }
 
-        // Start element가 없는 경우 A4용지 크기의 배경과 투명 노트를 생성
-        if (startElement == null) {
-            startElement = ListInfo(
-                unique = 0,
-                nextIndex = -1,
-                prevIndex = -1,
-                keyIndex = -1,
-                tag = 0
-            )
-            notes.nextPage = 1
-        }
         // mainList 초기화 및 요소 추가
-        mainListMap[startElement.unique] = startElement
+        mainListMap[startElement!!.unique] = startElement!!
         var curElement = startElement
         while (curElement?.nextIndex != -1) {
             val nextElement = notes.noteMap[curElement?.nextIndex]

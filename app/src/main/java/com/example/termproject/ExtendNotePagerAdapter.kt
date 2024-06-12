@@ -23,7 +23,7 @@ class ExtendNotePagerAdapter(private val context: Context,
                              private val parentKeyIndex: Int,
                              private val pdfPage: PdfRenderer.Page,
                              private val fileHash: String,
-                             public val extendNoteMap: MutableMap<Int, ListInfo>,
+                             public  val extendNoteMap: MutableMap<Int, ListInfo>,
                              private val viewPager: ViewPager
 ) : PagerAdapter() {
 
@@ -64,9 +64,6 @@ class ExtendNotePagerAdapter(private val context: Context,
             val convertedNoteBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
 
             noteDrawView.setBitmap(convertedNoteBitmap)
-
-            Log.d("background bitmap", "width: ${backgroundBitmap.width}, height: ${backgroundBitmap.height}")
-            Log.d("converted bitmap", "width: ${convertedNoteBitmap.width}, height: ${convertedNoteBitmap.height}")
 
             if(Paints.getEraseMode()) noteDrawView.setEraseMode()
             else noteDrawView.setDrawMode()
@@ -115,14 +112,14 @@ class ExtendNotePagerAdapter(private val context: Context,
         val width = (Util.a4Width * scaleFactor).toInt()
         val height = (Util.a4Height * scaleFactor).toInt()
 
-        val bitmap = if(direction == 2) {
+        val bitmap = if(direction == PORTRAIT_PAGE) {
             Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        } else {
+        } else if(direction == LANDSCAPE_PAGE) {
             Bitmap.createBitmap(height, width, Bitmap.Config.ARGB_8888)
-        }
-        bitmap.eraseColor(Color.WHITE)
+        } else null
+        bitmap!!.eraseColor(Color.WHITE)
 
-        return bitmap
+        return bitmap!!
     }
 
     private fun createDefaultBitmap(width:Int, height:Int, context: Context): Bitmap {
